@@ -7,12 +7,18 @@
 # General application configuration
 import Config
 
-config :spark, formatter: ["Ash.Resource": [section_order: [:postgres]]]
+config :spark,
+  formatter: [
+    "Ash.Resource": [section_order: [:authentication, :token, :user_identity, :postgres]]
+  ]
+
 config :ash, known_types: [AshPostgres.Timestamptz, AshPostgres.TimestamptzUsec]
 
 config :starter_kit,
   ecto_repos: [StarterKit.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  ash_domains: [StarterKit.Accounts],
+  ash_authentication: [return_error_on_invalid_magic_link_token?: true]
 
 # Configure the endpoint
 config :starter_kit, StarterKitWeb.Endpoint,
@@ -33,6 +39,10 @@ config :starter_kit, StarterKitWeb.Endpoint,
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
 config :starter_kit, StarterKit.Mailer, adapter: Swoosh.Adapters.Local
+
+# The From identity for all outgoing mail (the auth senders read this). Change it
+# to your verified sending domain before going to production.
+config :starter_kit, :email_from, {"StarterKit", "noreply@example.com"}
 
 # Configure Elixir's Logger
 config :logger, :default_formatter,

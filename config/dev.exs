@@ -50,7 +50,7 @@ config :starter_kit, StarterKitWeb.Endpoint,
 # different ports.
 
 # Enable dev routes for dashboard and mailbox
-config :starter_kit, dev_routes: true
+config :starter_kit, dev_routes: true, token_signing_secret: "lmfm7muFcUQTO8jcDPYp6qFszXBrOVxe"
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"

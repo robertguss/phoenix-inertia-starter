@@ -24,12 +24,16 @@ config :starter_kit, StarterKitWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 if config_env() == :prod do
-  database_url =
-    System.get_env("DATABASE_URL") ||
-      raise """
-      environment variable DATABASE_URL is missing.
-      For example: ecto://USER:PASS@HOST/DATABASE
-      """
+  # Fetch a required environment variable, or fail boot immediately naming the
+  # missing one (AE5, R7). Kept as a plain closure so config/runtime.exs stays
+  # self-contained and can be evaluated in isolation by `Config.Reader` in tests
+  # (see test/starter_kit/runtime_config_test.exs).
+  env! = fn name ->
+    System.get_env(name) ||
+      raise "Missing required environment variable: #{name}. See .env.example."
+  end
+
+  database_url = env!.("DATABASE_URL")
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
@@ -46,12 +50,7 @@ if config_env() == :prod do
   # want to use a different value for prod and you most likely don't want
   # to check this value into version control, so we use an environment
   # variable instead.
-  secret_key_base =
-    System.get_env("SECRET_KEY_BASE") ||
-      raise """
-      environment variable SECRET_KEY_BASE is missing.
-      You can generate one by calling: mix phx.gen.secret
-      """
+  secret_key_base = env!.("SECRET_KEY_BASE")
 
   host = System.get_env("PHX_HOST") || "example.com"
 
@@ -67,6 +66,8 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0}
     ],
     secret_key_base: secret_key_base
+
+  config :starter_kit, token_signing_secret: env!.("TOKEN_SIGNING_SECRET")
 
   # ## SSL Support
   #

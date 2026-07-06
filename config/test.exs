@@ -1,4 +1,6 @@
 import Config
+config :starter_kit, token_signing_secret: "jOlKVjSgGbRsy14P7MRyb1zMhioN9FgM"
+config :bcrypt_elixir, log_rounds: 1
 config :ash, disable_async?: true
 
 # Configure your database

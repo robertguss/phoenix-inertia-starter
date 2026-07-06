@@ -15,7 +15,8 @@ defmodule StarterKit.Application do
       # Start a worker by calling: StarterKit.Worker.start_link(arg)
       # {StarterKit.Worker, arg},
       # Start to serve requests, typically the last entry
-      StarterKitWeb.Endpoint
+      StarterKitWeb.Endpoint,
+      {AshAuthentication.Supervisor, [otp_app: :starter_kit]}
     ]
 
     # See https://elixir.hexdocs.pm/Supervisor.html

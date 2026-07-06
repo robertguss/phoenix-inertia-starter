@@ -57,6 +57,9 @@ defmodule StarterKit.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:bcrypt_elixir, "~> 3.0"},
+      {:picosat_elixir, "~> 0.2"},
+      {:ash_authentication, "~> 4.0"},
       # Ash domain layer (R2). `:ash` is listed directly so its usage-rules sync
       # into AGENTS.md (R19); ash_postgres/ash_phoenix bring the data layer + web glue.
       {:ash, "~> 3.0"},
@@ -88,7 +91,14 @@ defmodule StarterKit.MixProject do
       {:igniter, "~> 0.8", only: [:dev]},
       # Spark.Formatter needs sourceror at format time. igniter pulls it in :dev, but
       # the gate runs `mix format` in :test — list it explicitly for both envs.
-      {:sourceror, "~> 1.0", only: [:dev, :test]}
+      {:sourceror, "~> 1.0", only: [:dev, :test]},
+
+      # Testing harness (R17): Mimic for mocks, stream_data for property tests.
+      # Ash.Generator (in :ash) supplies fixtures — no separate factory library.
+      {:mimic, "~> 2.3", only: :test},
+      # No :only restriction — :ash depends on stream_data in all envs, so scoping
+      # it here would diverge from ash/mix.exs.
+      {:stream_data, "~> 1.0"}
     ]
   end
 

@@ -1,5 +1,8 @@
+# KTD10: Spark.Formatter is the only formatter plugin (Styler deliberately omitted).
+# It sorts Ash/Spark DSL sections per the `config :spark, formatter:` config.
 [
-  import_deps: [:ecto, :ecto_sql, :phoenix],
+  import_deps: [:ash_phoenix, :ash_postgres, :ecto, :ecto_sql, :phoenix],
+  plugins: [Spark.Formatter],
   subdirectories: ["priv/*/migrations"],
   inputs: ["*.{ex,exs}", "{config,lib,test}/**/*.{ex,exs}", "priv/*/seeds.exs"]
 ]

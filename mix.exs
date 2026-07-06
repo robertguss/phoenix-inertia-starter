@@ -11,6 +11,7 @@ defmodule StarterKit.MixProject do
       aliases: aliases(),
       deps: deps(),
       listeners: [Phoenix.CodeReloader],
+      usage_rules: usage_rules(),
       dialyzer: [
         plt_local_path: "priv/plts",
         plt_core_path: "priv/plts",
@@ -36,6 +37,17 @@ defmodule StarterKit.MixProject do
     ]
   end
 
+  # R19: sync package usage-rules into AGENTS.md's managed section so agents get
+  # Ash-ecosystem + Phoenix guidance in context. Re-run with `mix usage_rules.sync`
+  # after adding deps; the regexes pick up new ash_*/phoenix_* packages automatically
+  # (and the birth-script prune re-syncs so a pruned flavor never references removed deps).
+  defp usage_rules do
+    [
+      file: "AGENTS.md",
+      usage_rules: [:usage_rules, :ash, ~r/^ash_/, :phoenix, ~r/^phoenix_/]
+    ]
+  end
+
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
@@ -45,6 +57,13 @@ defmodule StarterKit.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      # Ash domain layer (R2). `:ash` is listed directly so its usage-rules sync
+      # into AGENTS.md (R19); ash_postgres/ash_phoenix bring the data layer + web glue.
+      {:ash, "~> 3.0"},
+      {:ash_phoenix, "~> 2.0"},
+      {:ash_postgres, "~> 2.0"},
+      {:tidewave, "~> 0.6", only: [:dev]},
+      {:usage_rules, "~> 1.0", only: [:dev]},
       {:phoenix, "~> 1.8.8"},
       {:phoenix_ecto, "~> 4.5"},
       {:ecto_sql, "~> 3.13"},
@@ -63,7 +82,13 @@ defmodule StarterKit.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false},
-      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
+
+      # Code-generation / installer tooling for the Ash ecosystem (dev-only).
+      {:igniter, "~> 0.8", only: [:dev]},
+      # Spark.Formatter needs sourceror at format time. igniter pulls it in :dev, but
+      # the gate runs `mix format` in :test — list it explicitly for both envs.
+      {:sourceror, "~> 1.0", only: [:dev, :test]}
     ]
   end
 
@@ -75,10 +100,10 @@ defmodule StarterKit.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "ecto.setup"],
+      setup: ["deps.get", "ash.setup", "run priv/repo/seeds.exs"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      test: ["ash.setup --quiet", "test"],
       # Single source of truth for the quality gate (KTD12). CI and docs reference
       # this alias by name; dialyzer is kept last because it is the slowest step.
       precommit: [

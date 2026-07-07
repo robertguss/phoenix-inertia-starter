@@ -199,6 +199,14 @@ defmodule StarterKit.Accounts.User do
       )
 
       change({AshAuthentication.Strategy.Password.HashPasswordChange, strategy_name: :password})
+
+      # Revoke every stored session token for this user (log out everywhere). The
+      # resource-level OnPasswordChange the add-on installs is gated on
+      # `where: changing(:hashed_password)`, which does NOT fire for this action
+      # (the field is force-changed by HashPasswordChange, not accepted), so the
+      # global logout silently never happened. Attaching it directly here — this
+      # action always changes the password — makes the guarantee real.
+      change({AshAuthentication.AddOn.LogOutEverywhere.OnPasswordChange, []})
     end
 
     read :sign_in_with_password do
@@ -320,6 +328,15 @@ defmodule StarterKit.Accounts.User do
 
       # Generates an authentication token for the user
       change(AshAuthentication.GenerateTokenChange)
+
+      # Revoke every stored session token for this user — a password reset (often
+      # done because access was lost or compromised) must kill sessions on all other
+      # devices. Attached explicitly for the same reason as `change_password`: the
+      # add-on's resource-level hook doesn't fire for this force-changed-password
+      # action. Runs after GenerateTokenChange, so the emailed link's own session is
+      # revoked too and the user re-authenticates fresh (the controller redirects to
+      # /sign-in and never uses the generated token).
+      change({AshAuthentication.AddOn.LogOutEverywhere.OnPasswordChange, []})
     end
 
     create :sign_in_with_magic_link do

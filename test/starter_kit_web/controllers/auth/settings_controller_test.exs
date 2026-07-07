@@ -18,7 +18,13 @@ defmodule StarterKitWeb.Auth.SettingsControllerTest do
       %{conn: conn, user: user}
     end
 
-    test "changes the password, ends THIS session, and redirects to sign-in (F4)", %{conn: conn} do
+    test "changes the password and revokes EVERY existing session (F4)", %{conn: conn, user: user} do
+      # A second, independent session for the same user, minted BEFORE the change.
+      # This is what proves server-side revocation — testing only the changing conn
+      # would pass even if global logout were broken (clear_session drops its cookie).
+      other = post(build_conn(), ~p"/sign-in", email: to_string(user.email), password: password())
+      assert get(other, ~p"/settings").status == 200
+
       conn =
         put(conn, ~p"/settings/password",
           current_password: password(),
@@ -29,12 +35,11 @@ defmodule StarterKitWeb.Auth.SettingsControllerTest do
       assert redirected_to(conn) == ~p"/sign-in"
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "sign in again"
 
-      # The controller `clear_session()`s, so THIS browser's session is dropped and
-      # the next request is unauthenticated — the honest F4 guarantee (an explicit
-      # sign-out of the current session, not silent breakage). NOTE: this asserts only
-      # the current session; cross-device "log out everywhere" is a separate add-on
-      # and is NOT proven here (see the known-issue note in the branch summary).
-      assert redirected_to(get(conn, ~p"/settings")) == ~p"/sign-in"
+      # log_out_everywhere flipped every stored token for this user to
+      # purpose=revocation, so the OTHER session — never touched by clear_session — is
+      # now dead too. A session copied to another device before the change can no
+      # longer reach an auth-required page.
+      assert redirected_to(get(other, ~p"/settings")) == ~p"/sign-in"
     end
 
     test "fails when the current password is wrong", %{conn: conn} do

@@ -46,6 +46,11 @@ defmodule StarterKitWeb.Auth.PasswordResetControllerTest do
       conn: conn
     } do
       user = generate(confirmed_user())
+
+      # A live session on another device, established before the reset.
+      other = post(build_conn(), ~p"/sign-in", email: to_string(user.email), password: password())
+      assert get(other, ~p"/settings").status == 200
+
       post(conn, ~p"/forgot-password", email: to_string(user.email))
       token = reset_token()
 
@@ -59,6 +64,9 @@ defmodule StarterKitWeb.Auth.PasswordResetControllerTest do
         )
 
       assert redirected_to(reset) == ~p"/sign-in"
+
+      # A reset logs out everywhere: the pre-existing session is now revoked.
+      assert redirected_to(get(other, ~p"/settings")) == ~p"/sign-in"
 
       # The new password now signs in.
       signin =

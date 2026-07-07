@@ -81,7 +81,8 @@ defmodule StarterKitWeb.Router do
     post "/forgot-password", Auth.PasswordResetController, :create
 
     # Emailed-link callbacks — the senders point at these exact paths (?token=...).
-    get "/auth/magic-link", Auth.MagicLinkController, :callback
+    get "/auth/magic-link", Auth.MagicLinkController, :show
+    post "/auth/magic-link", Auth.MagicLinkController, :confirm
     get "/auth/confirm", Auth.ConfirmationController, :show
     post "/auth/confirm", Auth.ConfirmationController, :confirm
     get "/auth/reset-password", Auth.PasswordResetController, :edit

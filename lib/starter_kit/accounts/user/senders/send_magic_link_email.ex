@@ -35,8 +35,12 @@ defmodule StarterKit.Accounts.User.Senders.SendMagicLinkEmail do
       StarterKitWeb.Endpoint.url() <>
         "/auth/magic-link?" <> URI.encode_query(token: params[:token])
 
+    # Escape the email before interpolating — it comes from user input and lands
+    # in HTML. The URL is already query-encoded.
+    email = params[:email] |> to_string() |> Plug.HTML.html_escape()
+
     """
-    <p>Hello, #{params[:email]}! Click this link to sign in:</p>
+    <p>Hello, #{email}! Click this link to sign in:</p>
     <p><a href="#{url}">#{url}</a></p>
     """
   end

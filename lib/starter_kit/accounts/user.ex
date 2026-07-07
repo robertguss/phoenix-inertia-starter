@@ -8,7 +8,7 @@ defmodule StarterKit.Accounts.User do
     domain: StarterKit.Accounts,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
-    extensions: [AshAuthentication, AshJsonApi.Resource]
+    extensions: [AshAuthentication, AshJsonApi.Resource, AshOban]
 
   authentication do
     add_ons do
@@ -21,6 +21,12 @@ defmodule StarterKit.Accounts.User do
         confirm_on_create? true
         confirm_on_update? false
         require_interaction? true
+        # F24 invariant: stays true. A pre-registration squat is NOT a takeover —
+        # register_with_password's token is discarded by RegistrationController
+        # (never sessioned) and require_confirmed_with :confirmed_at blocks password
+        # sign-in until confirmation — so do NOT disable this without a vetted
+        # password-clearing upsert.
+        prevent_hijacking? true
         confirmed_at_field :confirmed_at
         auto_confirm_actions [:sign_in_with_magic_link, :reset_password_with_token]
         sender StarterKit.Accounts.User.Senders.SendNewUserConfirmationEmail
@@ -57,6 +63,9 @@ defmodule StarterKit.Accounts.User do
       magic_link do
         identity_field :email
         registration_enabled? true
+        # The interstitial (GET shows, POST consumes) is enforced by
+        # MagicLinkController, not this flag — the controller calls the
+        # sign_in_with_magic_link action directly, which the flag does not gate.
         require_interaction? true
 
         sender StarterKit.Accounts.User.Senders.SendMagicLinkEmail
@@ -82,15 +91,33 @@ defmodule StarterKit.Accounts.User do
     end
   end
 
-  postgres do
-    table "users"
-    repo StarterKit.Repo
+  # KTD-R3: a polling scheduler (same pattern as Token's expunge trigger) that
+  # once a day destroys users still unconfirmed 7 days after creation. This makes
+  # a pre-registration email squat (F5) self-heal instead of locking the real
+  # owner out forever. Runs unauthorized via `config :ash_oban, authorize?: false`.
+  oban do
+    triggers do
+      trigger :expire_unconfirmed_users do
+        action(:destroy)
+        where(expr(is_nil(confirmed_at) and inserted_at < ago(7, :day)))
+        scheduler_cron("@daily")
+        queue(:default)
+        # Explicit module names keep enqueued jobs stable if the trigger is renamed.
+        worker_module_name(StarterKit.Accounts.User.AshOban.Worker.ExpireUnconfirmedUsers)
+        scheduler_module_name(StarterKit.Accounts.User.AshOban.Scheduler.ExpireUnconfirmedUsers)
+      end
+    end
   end
 
   # Exposed via JSON:API (R13). Routes are declared on the domain; only public
   # attributes (id, email) are serialized — hashed_password/admin? are not public.
   json_api do
     type "user"
+  end
+
+  postgres do
+    table "users"
+    repo StarterKit.Repo
   end
 
   attributes do
@@ -114,6 +141,10 @@ defmodule StarterKit.Accounts.User do
       default(false)
       public?(false)
     end
+
+    # Creation timestamp — flows through the magic-link upsert's initial insert and
+    # is the clock the expire_unconfirmed_users trigger measures the 7-day window against.
+    create_timestamp(:inserted_at)
   end
 
   relationships do
@@ -124,7 +155,8 @@ defmodule StarterKit.Accounts.User do
   end
 
   actions do
-    defaults([:read])
+    # :destroy backs the expire_unconfirmed_users AshOban trigger.
+    defaults([:read, :destroy])
 
     read :get_by_subject do
       description("Get a user by the subject claim in a JWT")

@@ -313,6 +313,11 @@ defmodule StarterKit.Accounts.User do
     end
 
     update :reset_password_with_token do
+      # Hashes the password (HashPasswordChange) and runs the global email `match`
+      # validation on a non-changing attribute — both non-atomic, same as
+      # change_password. Without this the action fails with MustBeAtomic.
+      require_atomic?(false)
+
       argument :reset_token, :string do
         allow_nil?(false)
         sensitive?(true)

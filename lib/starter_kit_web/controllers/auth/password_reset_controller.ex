@@ -49,10 +49,32 @@ defmodule StarterKitWeb.Auth.PasswordResetController do
         |> redirect(to: ~p"/sign-in")
 
       {:error, error} ->
-        conn
-        |> assign_errors(error)
-        |> assign_prop(:token, token)
-        |> render_inertia("auth/reset-password")
+        if invalid_token?(error) do
+          # A bad/expired token is not a form-field problem — mirror the
+          # confirmation flow: safe-fail back to sign-in with a flash.
+          conn
+          |> put_flash(
+            :error,
+            "That password-reset link is invalid or has expired. Request a new one."
+          )
+          |> redirect(to: ~p"/sign-in")
+        else
+          # Ordinary validation errors (password too short / mismatch) re-render the
+          # form with field errors, same as registration.
+          conn
+          |> assign_errors(error)
+          |> assign_prop(:token, token)
+          |> render_inertia("auth/reset-password")
+        end
     end
   end
+
+  # The reset action returns InvalidToken either bare or nested inside an
+  # Ash.Error.* wrapper's `:errors` list depending on the failure path.
+  defp invalid_token?(%AshAuthentication.Errors.InvalidToken{}), do: true
+
+  defp invalid_token?(%{errors: errors}) when is_list(errors),
+    do: Enum.any?(errors, &invalid_token?/1)
+
+  defp invalid_token?(_), do: false
 end

@@ -81,6 +81,12 @@ defmodule StarterKitWeb.Auth.RegistrationControllerTest do
       signin = post(build_conn(), ~p"/sign-in", email: email, password: password())
       assert redirected_to(signin) == ~p"/"
     end
+
+    test "a garbage confirmation token bounces to sign-in with an error flash", %{conn: conn} do
+      conn = post(conn, ~p"/auth/confirm", token: "not-a-real-token")
+      assert redirected_to(conn) == ~p"/sign-in"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "invalid"
+    end
   end
 
   # Pulls the confirmation token out of the (synchronously delivered) email.

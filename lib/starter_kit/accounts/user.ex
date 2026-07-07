@@ -8,7 +8,7 @@ defmodule StarterKit.Accounts.User do
     domain: StarterKit.Accounts,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
-    extensions: [AshAuthentication]
+    extensions: [AshAuthentication, AshJsonApi.Resource]
 
   authentication do
     add_ons do
@@ -61,6 +61,12 @@ defmodule StarterKit.Accounts.User do
 
         sender StarterKit.Accounts.User.Senders.SendMagicLinkEmail
       end
+
+      # API-key auth (R14). The plug validates keys against `valid_api_keys` (only
+      # unexpired ones, per the relationship filter).
+      api_key do
+        api_key_relationship :valid_api_keys
+      end
     end
   end
 
@@ -68,11 +74,23 @@ defmodule StarterKit.Accounts.User do
     bypass(AshAuthentication.Checks.AshAuthenticationInteraction) do
       authorize_if(always())
     end
+
+    # API/general reads require an authenticated actor, who only sees themselves.
+    policy action_type(:read) do
+      forbid_unless(actor_present())
+      authorize_if(expr(id == ^actor(:id)))
+    end
   end
 
   postgres do
     table "users"
     repo StarterKit.Repo
+  end
+
+  # Exposed via JSON:API (R13). Routes are declared on the domain; only public
+  # attributes (id, email) are serialized — hashed_password/admin? are not public.
+  json_api do
+    type "user"
   end
 
   attributes do
@@ -95,6 +113,13 @@ defmodule StarterKit.Accounts.User do
       allow_nil?(false)
       default(false)
       public?(false)
+    end
+  end
+
+  relationships do
+    # Only unexpired keys count for authentication (the api_key strategy reads this).
+    has_many :valid_api_keys, StarterKit.Accounts.ApiKey do
+      filter(expr(valid))
     end
   end
 
@@ -232,6 +257,12 @@ defmodule StarterKit.Accounts.User do
 
       # creates a reset token and invokes the relevant senders
       run({AshAuthentication.Strategy.Password.RequestPasswordReset, action: :get_by_email})
+    end
+
+    read :sign_in_with_api_key do
+      description("Sign in using an API key (R14).")
+      argument(:api_key, :string, allow_nil?: false)
+      prepare(AshAuthentication.Strategy.ApiKey.SignInPreparation)
     end
 
     read :get_by_email do

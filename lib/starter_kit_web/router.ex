@@ -21,6 +21,10 @@ defmodule StarterKitWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    # Sets the Ash actor from an API key or JWT bearer token (R14). Never halts;
+    # resource policies decide access. `open_api`/`docs` carry no policy, so they
+    # stay reachable without credentials.
+    plug StarterKitWeb.Plugs.ApiAuth
   end
 
   # Gate for authenticated-only pages; redirects anonymous users to sign-in.
@@ -84,8 +88,14 @@ defmodule StarterKitWeb.Router do
     put "/settings/password", Auth.SettingsController, :update_password
   end
 
-  scope "/api", StarterKitWeb do
+  # JSON:API (R13, R14). The AshJsonApi router serves the resource routes plus the
+  # generated OpenAPI spec at /api/v1/open_api; Swagger UI renders it at /api/v1/docs.
+  # The `forward "/"` to the Ash router must stay last (it matches everything).
+  scope "/api/v1" do
     pipe_through :api
+
+    forward "/docs", OpenApiSpex.Plug.SwaggerUI, path: "/api/v1/open_api"
+    forward "/", StarterKitWeb.ApiRouter
   end
 
   # Admin + observability surfaces (R5, R6). Mounted in every environment but gated

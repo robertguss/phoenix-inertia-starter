@@ -89,6 +89,11 @@ defmodule StarterKit.MixProject do
       {:ash_admin, "~> 1.1"},
       {:ecto_psql_extras, "~> 0.8"},
 
+      # JSON:API layer (R13, R14). ash_json_api exposes resources as JSON:API with an
+      # auto-generated OpenAPI spec; open_api_spex serves the Swagger UI docs page.
+      {:ash_json_api, "~> 1.7"},
+      {:open_api_spex, "~> 3.22"},
+
       # Web flavor (R9): Inertia.js server adapter (pinned to the stable 2.x line,
       # KTD1) + phoenix_vite, which feeds Vite's manifest into Phoenix's static
       # digesting so no phx.digest hacks are needed (KTD2). Both pruned for --api.

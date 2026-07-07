@@ -5,7 +5,7 @@ defmodule StarterKit.Accounts do
   """
   use Ash.Domain,
     otp_app: :starter_kit,
-    extensions: [AshAdmin.Domain]
+    extensions: [AshAdmin.Domain, AshJsonApi.Domain]
 
   # Surface this domain (and its resources) in AshAdmin (R5). Access is gated in the
   # router: open in dev, admin-only in production.
@@ -13,8 +13,19 @@ defmodule StarterKit.Accounts do
     show?(true)
   end
 
+  # JSON:API routes (R13). Exposed under the /api/v1 scope (see the router). The read
+  # is actor-scoped by the User policy, so it returns only the authenticated user.
+  json_api do
+    routes do
+      base_route "/users", StarterKit.Accounts.User do
+        index :read
+      end
+    end
+  end
+
   resources do
     resource StarterKit.Accounts.Token
+    resource StarterKit.Accounts.ApiKey
 
     # Code interfaces (KTD3): controllers and tests call these instead of building
     # changesets by hand. Auth actions run under AshAuthentication's interaction

@@ -55,6 +55,12 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Register the JSON:API media type (R13) so Phoenix parses/serves it. If a stale
+# compile of :mime complains, run `mix deps.compile mime --force`.
+config :mime,
+  extensions: %{"json" => "application/vnd.api+json"},
+  types: %{"application/vnd.api+json" => ["json"]}
+
 # Inertia.js server adapter (web flavor; pruned for --api).
 config :inertia, endpoint: StarterKitWeb.Endpoint
 

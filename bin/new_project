@@ -17,6 +17,11 @@ defmodule NewProject do
   @template_root File.cwd!()
   @reserved ~w(phoenix ash ecto oban elixir mix)
 
+  # Node major installed into the release Dockerfile builder — phoenix_vite shells
+  # out to npm, which the Elixir builder image lacks. Matches the CI pin
+  # (.github/workflows/*.yml) and assets/package.json's @types/node.
+  @node_major 24
+
   # Template-only artifacts a newborn should never carry.
   @always_delete ~w(bin/new_project docs/plans .github/workflows/birth-matrix.yml)
 
@@ -42,6 +47,7 @@ defmodule NewProject do
     target = Path.expand(dir || "../#{names.app}", @template_root)
 
     ensure_target!(target)
+    check_binaries!(flavor)
     info("Birthing #{names.app} (#{flavor}) into #{target}")
 
     copy_template!(target)
@@ -141,23 +147,28 @@ defmodule NewProject do
   end
 
   defp copy_template!(target) do
+    # Copy only what git would keep: the `:- .gitignore` dir-merge filter applies the
+    # repo's working-tree ignore rules per directory, so the newborn never inherits
+    # build cruft (_build, deps, node_modules, priv/static, and stray gitignored files
+    # like an 8MB erl_crash.dump) — replacing the old hand-maintained exclude list
+    # (F7). `.git` isn't gitignored, so it's excluded explicitly.
     {_, 0} =
       System.cmd(
         "rsync",
-        [
-          "-a",
-          "--exclude=.git",
-          "--exclude=_build",
-          "--exclude=deps",
-          "--exclude=node_modules",
-          "--exclude=priv/static",
-          "--exclude=priv/plts",
-          "--exclude=.elixir_ls",
-          "./",
-          target <> "/"
-        ],
+        ["-a", "--filter=:- .gitignore", "--exclude=.git", "./", target <> "/"],
         cd: @template_root
       )
+  end
+
+  # Fail with a named, friendly message if a tool the birth actually shells out to is
+  # missing, instead of letting a `{_, 0} = System.cmd(...)` MatchError escape. docker
+  # is NOT required — birth generates the Dockerfile but never builds it.
+  defp check_binaries!(flavor) do
+    required = ~w(git mix rsync) ++ if(flavor == :web, do: ["npm"], else: [])
+
+    for bin <- required, is_nil(System.find_executable(bin)) do
+      die("required executable #{inspect(bin)} not found on PATH — install it and retry", 1)
+    end
   end
 
   defp rename!(target, names) do
@@ -275,8 +286,10 @@ defmodule NewProject do
     end
 
     mix!(target, ["compile"], "compiling (the rename verifier)")
+    # Create + migrate the dev database so `mix phx.server` works first-run (F9).
+    # Runs for both flavors and regardless of --skip-gate — this is setup, not a gate.
+    mix!(target, ["ash.setup"], "creating and migrating the dev database")
     mix!(target, ["usage_rules.sync", "--yes"], "syncing AGENTS.md for the flavor")
-    mix!(target, ["format"], "formatting")
 
     if flavor == :web do
       npm!(target, ["ci"], "installing npm packages")
@@ -284,7 +297,58 @@ defmodule NewProject do
       npm!(target, ["run", "build"], "building the frontend")
     end
 
+    # Ship a production release Dockerfile so the newborn is deployable day one (F3,
+    # KTD-R1). --api omits the assets lines (generator gates them on assets/ existing);
+    # --web needs Node + an install-after-copy fixup, see patch_dockerfile!/1.
+    mix!(target, ["phx.gen.release", "--docker", "--force"], "generating the release Dockerfile")
+    if flavor == :web, do: patch_dockerfile!(target)
+
+    # Format last so the generator's lib/*/release.ex is gate-clean too.
+    mix!(target, ["format"], "formatting")
+
     git_init!(target)
+  end
+
+  # The Phoenix builder is a Node-less Elixir image, but this template's
+  # assets.setup/deploy shell out to npm (phoenix_vite). Two problems to fix in the
+  # generated web Dockerfile: (1) no Node in the builder; (2) the generator emits
+  # `RUN mix assets.setup` (= `npm install`) BEFORE `COPY assets assets`, so there's
+  # no package.json yet. We install Node in a cached layer and move the npm install
+  # to right before the asset build, after the copy.
+  defp patch_dockerfile!(target) do
+    path = Path.join(target, "Dockerfile")
+    lines = path |> File.read!() |> String.split("\n")
+
+    # Anchors Phoenix emits for a project WITH an assets/ dir. If a future generator
+    # drops them, fail loud instead of shipping a Node-less image that dies at build.
+    for anchor <- ["RUN mix deps.compile", "RUN mix assets.deploy"], anchor not in lines do
+      die("Dockerfile patch anchor #{inspect(anchor)} not found — phx.gen.release output changed; update bin/new_project", 1)
+    end
+
+    node_install = [
+      "",
+      "# Node.js + npm for the phoenix_vite (Vite) asset pipeline, absent from the",
+      "# Elixir builder image. Pinned to Node #{@node_major} (matches CI + @types/node).",
+      "RUN apt-get update \\",
+      "  && apt-get install -y --no-install-recommends curl \\",
+      "  && curl -fsSL https://deb.nodesource.com/setup_#{@node_major}.x | bash - \\",
+      "  && apt-get install -y --no-install-recommends nodejs \\",
+      "  && rm -rf /var/lib/apt/lists/*"
+    ]
+
+    patched =
+      lines
+      # Drop the generator's premature `RUN mix assets.setup` (runs before the copy).
+      |> Enum.reject(&(&1 == "RUN mix assets.setup"))
+      |> Enum.flat_map(fn
+        "RUN mix deps.compile" = l -> [l | node_install]
+        # Re-add setup right before deploy, now that assets/ have been copied.
+        "RUN mix assets.deploy" = l -> ["RUN mix assets.setup", l]
+        l -> [l]
+      end)
+
+    File.write!(path, Enum.join(patched, "\n"))
+    info("Patched Dockerfile: Node #{@node_major} in builder, npm install after asset copy")
   end
 
   defp verify!(target, _flavor) do
@@ -301,7 +365,10 @@ defmodule NewProject do
     {_, 0} = System.cmd("git", ["add", "-A"], cd: target)
 
     {_, 0} =
-      System.cmd("git", ["commit", "-q", "-m", "Initial commit from starter template"],
+      System.cmd(
+        "git",
+        # -c commit.gpgsign=false so a user's global signing config can't hang/fail birth.
+        ["-c", "commit.gpgsign=false", "commit", "-q", "-m", "Initial commit from starter template"],
         cd: target,
         env: [{"GIT_AUTHOR_NAME", "new_project"}, {"GIT_AUTHOR_EMAIL", "new_project@example.com"},
          {"GIT_COMMITTER_NAME", "new_project"}, {"GIT_COMMITTER_EMAIL", "new_project@example.com"}]
@@ -348,8 +415,8 @@ defmodule NewProject do
 
       cd #{Path.relative_to_cwd(target)}
     #{if skip_gate?, do: "  mix precommit          # verify the gate (skipped)\n", else: ""}\
-      mix phx.server         # #{surface}
-      fly launch --no-deploy # generate Dockerfile/fly.toml when ready to deploy
+      mix phx.server         # #{surface} (deps + dev DB are ready)
+      docker build .         # a production Dockerfile is generated and ready
 
     The demo Notes slice ships inside — run `bin/remove_demo` once you have real
     features. Build with an agent: point it at AGENTS.md.

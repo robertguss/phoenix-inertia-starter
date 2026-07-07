@@ -18,7 +18,7 @@ defmodule StarterKitWeb.Auth.SettingsControllerTest do
       %{conn: conn, user: user}
     end
 
-    test "changes the password with the correct current password", %{conn: conn} do
+    test "changes the password, ends the session, and redirects to sign-in", %{conn: conn} do
       conn =
         put(conn, ~p"/settings/password",
           current_password: password(),
@@ -26,7 +26,13 @@ defmodule StarterKitWeb.Auth.SettingsControllerTest do
           password_confirmation: "brand-new-password"
         )
 
-      assert redirected_to(conn) == ~p"/settings"
+      assert redirected_to(conn) == ~p"/sign-in"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "sign in again"
+
+      # `log_out_everywhere` revoked this session's token in the same transaction,
+      # so the old conn no longer reaches an auth-required page (F4).
+      conn = get(conn, ~p"/settings")
+      assert redirected_to(conn) == ~p"/sign-in"
     end
 
     test "fails when the current password is wrong", %{conn: conn} do

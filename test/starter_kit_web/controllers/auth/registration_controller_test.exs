@@ -32,6 +32,23 @@ defmodule StarterKitWeb.Auth.RegistrationControllerTest do
       assert %{"email" => _} = inertia_errors(signin)
     end
 
+    test "an already-registered email is enumeration-safe: confirm-pending, no error, no email",
+         %{conn: conn} do
+      user = generate(confirmed_user())
+
+      conn =
+        post(conn, ~p"/register",
+          email: to_string(user.email),
+          password: password(),
+          password_confirmation: password()
+        )
+
+      # Same outcome as a fresh signup — the "has already been taken" error never
+      # reaches the form, and the existing account is untouched (no email). (F25)
+      assert redirected_to(conn) == ~p"/register/confirm-pending"
+      refute_email_sent()
+    end
+
     test "mismatched password confirmation re-renders with errors", %{conn: conn} do
       conn =
         post(conn, ~p"/register",

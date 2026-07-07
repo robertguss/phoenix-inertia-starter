@@ -25,9 +25,14 @@ defmodule StarterKitWeb.Auth.SettingsController do
            authorize?: false
          ) do
       {:ok, _user} ->
+        # `log_out_everywhere` (apply_on_password_change?) revoked every token —
+        # including this session's — in the same transaction, so the current cookie
+        # is already dead. Drop it and send the user to sign in with an honest
+        # message instead of bouncing them off an auth-required page (F4).
         conn
-        |> put_flash(:info, "Your password has been updated.")
-        |> redirect(to: ~p"/settings")
+        |> clear_session()
+        |> put_flash(:info, "Password changed. Please sign in again.")
+        |> redirect(to: ~p"/sign-in")
 
       {:error, error} ->
         conn

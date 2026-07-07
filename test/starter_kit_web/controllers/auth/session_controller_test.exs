@@ -25,6 +25,15 @@ defmodule StarterKitWeb.Auth.SessionControllerTest do
       assert inertia_component(conn) == "auth/settings"
     end
 
+    test "sign-in renews the session id (fixation protection)", %{conn: conn, user: user} do
+      conn = post(conn, ~p"/sign-in", email: to_string(user.email), password: password())
+      assert redirected_to(conn) == ~p"/"
+
+      # configure_session(renew: true) rotates the session on this privilege change;
+      # without it store_in_session only flags :write (F26).
+      assert conn.private[:plug_session_info] == :renew
+    end
+
     test "invalid credentials re-render the page with an error", %{conn: conn, user: user} do
       conn = post(conn, ~p"/sign-in", email: to_string(user.email), password: "wrong-password")
       assert inertia_component(conn) == "auth/sign-in"

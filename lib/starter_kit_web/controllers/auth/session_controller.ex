@@ -19,7 +19,10 @@ defmodule StarterKitWeb.Auth.SessionController do
     case Accounts.sign_in_with_password(email, password, authorize?: false) do
       {:ok, user} ->
         conn
+        # store_in_session does not renew on its own; renew to rotate the session
+        # id on privilege change (F26).
         |> Helpers.store_in_session(user)
+        |> configure_session(renew: true)
         |> put_flash(:info, "Welcome back!")
         |> redirect(to: ~p"/")
 

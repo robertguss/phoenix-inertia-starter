@@ -19,6 +19,15 @@ defmodule StarterKit.Notes.Note do
   end
 
   policies do
+    # KTD-R6: resource-level admin bypass. An actor with admin? == true passes ALL
+    # policies, so AshAdmin — and any authenticated surface — can list and manage
+    # every note, not just the owner's. Deliberately NOT action-type scoped: admin
+    # credentials grant full CRUD. No new path for a non-admin — admin? lives on User,
+    # is server-set, and is never public.
+    bypass actor_attribute_equals(:admin?, true) do
+      authorize_if(always())
+    end
+
     # Any authenticated actor may create a note (it becomes theirs).
     policy action_type(:create) do
       authorize_if(actor_present())

@@ -93,6 +93,11 @@ config :starter_kit,
 
 # PRUNE:END
 
+# KTD-R6: AshAdmin resolves its actor via this plug. The custom one makes the
+# signed-in user the actor (the stock plug only reads AshAdmin's "act as" selector
+# and defaults to nil), so an admin acting with "authorizing" on manages every row.
+config :ash_admin, :actor_plug, StarterKitWeb.AshAdminActorPlug
+
 # The LiveView admin surfaces (AshAdmin, LiveDashboard) need a looser CSP than a
 # plain page: LiveView injects inline bootstrap and connects over a websocket.
 config :starter_kit,

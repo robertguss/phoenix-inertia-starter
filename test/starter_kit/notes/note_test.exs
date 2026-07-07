@@ -79,4 +79,22 @@ defmodule StarterKit.Notes.NoteTest do
       assert [] = Notes.list_notes!(actor: user)
     end
   end
+
+  # F19 / KTD-R6: the admin bypass policy lets an admin actor manage every note, not
+  # just their own — the same fix that makes AshAdmin list rows for an admin.
+  describe "admin bypass" do
+    test "an admin lists and edits notes owned by other users" do
+      owner = generate(confirmed_user(admin?: false))
+      admin = generate(confirmed_user(admin?: true))
+      {:ok, note} = Notes.create_note(%{title: "owner note"}, actor: owner)
+
+      assert "owner note" in Enum.map(Notes.list_notes!(actor: admin), & &1.title)
+      assert {:ok, %{title: "edited"}} = Notes.update_note(note, %{title: "edited"}, actor: admin)
+
+      # Non-regression: the admin bypass opens nothing for a non-admin — a different
+      # user still sees none of the owner's notes.
+      other = generate(confirmed_user(admin?: false))
+      assert Notes.list_notes!(actor: other) == []
+    end
+  end
 end

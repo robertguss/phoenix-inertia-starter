@@ -80,6 +80,16 @@ defmodule StarterKit.Accounts.User do
   end
 
   policies do
+    # KTD-R6: resource-level admin bypass. An actor with admin? == true passes ALL
+    # policies (read + the default-deny create/update/destroy), so AshAdmin — and any
+    # authenticated surface — can list and manage every user row. This is deliberately
+    # NOT action-type scoped: admin credentials via any authenticated surface grant
+    # full CRUD. That opens no path for a non-admin — admin? is server-set and not a
+    # public attribute (never accepted from forms/APIs), so the power stays admin-gated.
+    bypass actor_attribute_equals(:admin?, true) do
+      authorize_if(always())
+    end
+
     bypass(AshAuthentication.Checks.AshAuthenticationInteraction) do
       authorize_if(always())
     end

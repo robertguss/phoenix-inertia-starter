@@ -17,6 +17,7 @@ defmodule StarterKitWeb.AdminAccessTest do
 
   alias AshAuthentication.Plug.Helpers
   alias StarterKit.Accounts
+  alias StarterKit.Accounts.User
 
   describe "AshAdmin at /admin" do
     test "denies anonymous users", %{conn: conn} do
@@ -48,6 +49,23 @@ defmodule StarterKitWeb.AdminAccessTest do
       admin = generate(confirmed_user(admin?: true))
       conn = conn |> sign_in(admin) |> get("/dashboard")
       assert_reachable(conn)
+    end
+  end
+
+  # F19 / KTD-R6: the admin bypass policy proven at the Ash layer, independent of the
+  # AshAdmin LiveView. This is the robust core of the fix — an admin actor passes all
+  # policies (sees every row), while a non-admin stays scoped to themselves.
+  describe "admin bypass policy" do
+    test "an admin reads every user; a non-admin reads only themselves" do
+      admin = generate(confirmed_user(admin?: true))
+      non_admin = generate(confirmed_user(admin?: false))
+
+      admin_ids = User |> Ash.read!(actor: admin, authorize?: true) |> Enum.map(& &1.id)
+      assert admin.id in admin_ids
+      assert non_admin.id in admin_ids
+
+      non_admin_ids = User |> Ash.read!(actor: non_admin, authorize?: true) |> Enum.map(& &1.id)
+      assert non_admin_ids == [non_admin.id]
     end
   end
 

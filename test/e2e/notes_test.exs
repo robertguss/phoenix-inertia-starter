@@ -1,3 +1,4 @@
+# DEMO: example Notes browser E2E — bin/remove_demo deletes this file with the slice.
 defmodule StarterKitWeb.E2E.NotesTest do
   @moduledoc """
   Browser E2E smoke (R17, AE2, KTD8): a signed-in user creates a note through the

@@ -1,13 +1,14 @@
 #!/usr/bin/env elixir
 
-# bin/remove_demo — strips the example Notes slice (R23) from a freshly-birthed
-# project. Run it once, right after birth and before applying migrations to any
-# real database.
+# bin/remove_demo — strips the example Notes slice (R23) from a birthed project.
+# Run it once when you're ready to drop the demo (typically once you have real
+# features of your own). Safe on an already-migrated database: it leaves a
+# `drop_notes` migration so `mix ecto.migrate` removes the notes table.
 #
 # It deletes every file whose header carries a `DEMO:` marker, removes the demo
-# references from the shared router / config / api-router, drops the Notes
-# migration + snapshot, reformats, and (unless `--skip-gate`) re-runs `mix
-# precommit` so the tree stays green.
+# references from the shared router / config / api-router, deletes the Notes
+# create migration + snapshot and adds a drop migration, reformats, and (unless
+# `--skip-gate`) re-runs `mix precommit` so the tree stays green.
 #
 #   bin/remove_demo              # remove + verify with the full gate
 #   bin/remove_demo --skip-gate  # remove only (faster; verify yourself)
@@ -17,7 +18,7 @@ defmodule RemoveDemo do
   @marker ~r/(#|\/\/|\{\/\*)\s*DEMO/
   # A shared-file line is also demo if it names a demo module the marker may have
   # been reformatted away from (the Elixir formatter relocates trailing comments).
-  @demo_tokens ~r/StarterKit\.Notes|NoteController/
+  @demo_tokens ~r/StarterKit\.Notes|\bNoteController\b/
 
   # Directories scanned for demo files/lines.
   @scan_dirs ~w(lib test config assets/js priv/repo/migrations)
@@ -39,9 +40,11 @@ defmodule RemoveDemo do
     Enum.each(shared, &strip_demo_lines/1)
     Enum.each(@extra_paths, &File.rm_rf!/1)
     prune_empty_dirs()
+    drop = write_drop_migration()
 
     IO.puts("Deleted #{length(deleted)} demo file(s); cleaned #{length(shared)} shared file(s).")
     Enum.each(Enum.sort(deleted), &IO.puts("  - #{&1}"))
+    IO.puts("  + #{drop} (drops the notes table on an already-migrated DB)")
 
     format!()
     if "--skip-gate" in args, do: done(), else: verify!()
@@ -76,6 +79,53 @@ defmodule RemoveDemo do
     |> Enum.filter(&File.dir?/1)
     |> Enum.sort_by(&(-String.length(&1)))
     |> Enum.each(fn dir -> if File.ls!(dir) == [], do: File.rmdir(dir) end)
+  end
+
+  # The demo's `create_notes` migration + snapshot are deleted above, so a DB that
+  # already ran `mix ash.setup` still has the notes table. Leave a drop migration so
+  # `mix ecto.migrate` cleans it up. `mix ash_postgres.generate_migrations --check`
+  # stays clean because both the Note resource and its snapshot are gone (nothing to
+  # diff); this is a plain Ecto migration Ash doesn't track.
+  defp write_drop_migration do
+    ts = Calendar.strftime(DateTime.utc_now(), "%Y%m%d%H%M%S")
+    path = "priv/repo/migrations/#{ts}_drop_notes.exs"
+    File.write!(path, drop_migration_source(migration_repo_module()))
+    path
+  end
+
+  # Reuse the surviving migrations' module prefix (renamed on birth, e.g. `MyApp.Repo`).
+  defp migration_repo_module do
+    "priv/repo/migrations/*.exs"
+    |> Path.wildcard()
+    |> Enum.find_value("StarterKit.Repo", fn file ->
+      case Regex.run(~r/defmodule\s+([\w.]+)\.Migrations\./, File.read!(file)) do
+        [_, mod] -> mod
+        _ -> nil
+      end
+    end)
+  end
+
+  defp drop_migration_source(repo_mod) do
+    """
+    defmodule #{repo_mod}.Migrations.DropNotes do
+      @moduledoc \"\"\"
+      Drops the demo Notes table. `bin/remove_demo` removed the Notes slice, so its
+      `create_notes` migration and resource snapshot are gone; this cleans up a
+      database that already ran `mix ash.setup` / `mix ecto.migrate`.
+      \"\"\"
+
+      use Ecto.Migration
+
+      def up do
+        drop_if_exists table(:notes)
+      end
+
+      def down do
+        # Irreversible: the demo Notes slice is gone; it cannot be recreated here.
+        :ok
+      end
+    end
+    """
   end
 
   defp format! do

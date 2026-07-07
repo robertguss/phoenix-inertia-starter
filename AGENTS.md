@@ -28,6 +28,24 @@ ships red.
   spec.
 - Use the bundled `Req` for HTTP requests; avoid `:httpoison`, `:tesla`, `:httpc`.
 
+## Testing conventions (deliberately plural)
+
+- `Phoenix.ConnTest` + `Inertia.Testing` for web-flavor controller assertions
+  (props/component, not rendered HTML); plain `Phoenix.ConnTest` for JSON:API.
+- `Ash.Generator` fixtures (see `test/support/generators.ex`), `Mimic` for mocks,
+  `stream_data` for property tests — no separate factory library.
+<!-- PRUNE:WEB -->
+- Browser E2E lives in `test/e2e/` tagged `:playwright`, **excluded** from the
+  fast gate; run it with `mix test --only playwright` (CI's web leg does).
+<!-- PRUNE:END -->
+
+## This is a template
+
+`starter_kit` / `StarterKit` / `starter-kit` are placeholder names — never
+hard-code them in new code. `bin/new_project` births a real project and
+`bin/remove_demo` strips the example Notes slice; the demo is the only
+deliberately-removable code.
+
 Everything below this line is synced from package usage-rules by
 `mix usage_rules.sync` — it is managed, do not edit by hand.
 

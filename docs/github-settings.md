@@ -21,5 +21,5 @@ repo's **Settings**.
   workflows only need `contents: read`.
 - **Branch protection on the default branch:** require the `mix precommit` (CI)
   and both `birth-matrix` legs to pass before merge.
-- **Issues:** your call. Off keeps it truly read-only; on lets forkers ask
-  questions. Either is consistent with the "fork it" stance.
+- **Issues: off.** `CONTRIBUTING.md` states the template accepts no issues, PRs,
+  or support requests — turn Issues off to match that read-only "fork it" posture.

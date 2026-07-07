@@ -46,6 +46,21 @@ hard-code them in new code. `bin/new_project` births a real project and
 `bin/remove_demo` strips the example Notes slice; the demo is the only
 deliberately-removable code.
 
+## Blessed patterns (build new work like these)
+
+- **Forms:** page components under `assets/js/pages/**` built with the `field.tsx`
+  helper (`@/components/field`) and Inertia's `useForm` — see
+  `assets/js/pages/notes/form.tsx`. The shipped shadcn `Form` and `Dialog`
+  components (`assets/js/components/ui/`) are the copied-in core set (R10) and are
+  both kept; reach for the `useForm` idiom for new forms and `Dialog` for
+  confirmations (demoed in `assets/js/pages/notes/index.tsx`).
+- **Vertical slice:** an Ash resource under `lib/starter_kit/notes/` plus a
+  controller at `lib/starter_kit_web/controllers/note_controller.ex` — model new
+  CRUD work on that pairing.
+- Bracketed tags in code comments (e.g. `R23`, `KTD3`, `AE4`, `Pattern B`) are
+  internal build-provenance tags from the template's own planning docs and are
+  safe for consumers to ignore.
+
 Everything below this line is synced from package usage-rules by
 `mix usage_rules.sync` — it is managed, do not edit by hand.
 

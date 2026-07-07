@@ -31,6 +31,9 @@ config :starter_kit,
 config :starter_kit, StarterKitWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
+  # Errors render as JSON only by design — the Inertia web flavor and the JSON:API
+  # layer both consume JSON, so there is no ErrorHTML view. Non-Inertia HTML routes
+  # fall back to Phoenix's built-in plain-text error responses.
   render_errors: [
     formats: [json: StarterKitWeb.ErrorJSON],
     layout: false

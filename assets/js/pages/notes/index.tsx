@@ -1,8 +1,17 @@
 // DEMO: Notes index page — bin/remove_demo deletes this file.
+import { useState } from "react";
 import { Link, router, usePage } from "@inertiajs/react";
 
 import { Flash } from "@/components/flash";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -18,11 +27,13 @@ type NotesIndexProps = PageProps<{ notes: Note[] }>;
 
 export default function NotesIndex() {
   const { notes } = usePage<NotesIndexProps>().props;
+  const [pendingNote, setPendingNote] = useState<Note | null>(null);
 
-  function destroy(id: string) {
-    if (window.confirm("Delete this note?")) {
-      router.delete(`/notes/${id}`);
-    }
+  function confirmDelete() {
+    if (!pendingNote) return;
+    router.delete(`/notes/${pendingNote.id}`, {
+      onFinish: () => setPendingNote(null),
+    });
   }
 
   return (
@@ -56,7 +67,7 @@ export default function NotesIndex() {
                   </Link>
                   <button
                     type="button"
-                    onClick={() => destroy(note.id)}
+                    onClick={() => setPendingNote(note)}
                     className="text-destructive underline"
                   >
                     Delete
@@ -67,6 +78,30 @@ export default function NotesIndex() {
           </TableBody>
         </Table>
       )}
+
+      <Dialog
+        open={pendingNote !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingNote(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete note</DialogTitle>
+            <DialogDescription>
+              Delete “{pendingNote?.title}”? This can’t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingNote(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

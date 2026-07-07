@@ -75,6 +75,18 @@ defmodule StarterKitWeb.Telemetry do
           "The time the connection spent waiting before being checked out for the query"
       ),
 
+      # Oban Metrics (R6)
+      summary("oban.job.stop.duration",
+        tags: [:queue],
+        unit: {:native, :millisecond},
+        description: "Time spent running an Oban job"
+      ),
+      summary("oban.job.exception.duration",
+        tags: [:queue],
+        unit: {:native, :millisecond},
+        description: "Runtime before an Oban job raised"
+      ),
+
       # VM Metrics
       summary("vm.memory.total", unit: {:byte, :kilobyte}),
       summary("vm.total_run_queue_lengths.total"),

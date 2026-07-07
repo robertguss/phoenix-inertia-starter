@@ -88,6 +88,14 @@ defmodule StarterKit.Accounts.User do
     end
 
     attribute(:confirmed_at, :utc_datetime_usec)
+
+    # Gates production access to the admin surfaces (R5, AE4). Not public — set it
+    # from a seed, the console, or AshAdmin, never from user-facing forms/APIs.
+    attribute :admin?, :boolean do
+      allow_nil?(false)
+      default(false)
+      public?(false)
+    end
   end
 
   actions do

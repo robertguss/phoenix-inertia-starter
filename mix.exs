@@ -80,6 +80,15 @@ defmodule StarterKit.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
 
+      # Jobs, admin, observability (R4, R5, R6). Oban runs background jobs; ash_oban
+      # integrates them with Ash actions (triggers + scheduled actions). AshAdmin is a
+      # LiveView admin UI, prod-gated in the router. ecto_psql_extras powers
+      # LiveDashboard's Ecto stats page. All three surfaces stay in both flavors (KTD7).
+      {:oban, "~> 2.23"},
+      {:ash_oban, "~> 0.8"},
+      {:ash_admin, "~> 1.1"},
+      {:ecto_psql_extras, "~> 0.8"},
+
       # Web flavor (R9): Inertia.js server adapter (pinned to the stable 2.x line,
       # KTD1) + phoenix_vite, which feeds Vite's manifest into Phoenix's static
       # digesting so no phx.digest hacks are needed (KTD2). Both pruned for --api.

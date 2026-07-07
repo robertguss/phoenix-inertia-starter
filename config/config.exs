@@ -9,7 +9,10 @@ import Config
 
 config :spark,
   formatter: [
-    "Ash.Resource": [section_order: [:authentication, :token, :user_identity, :postgres]]
+    "Ash.Resource": [
+      section_order: [:admin, :authentication, :token, :oban, :user_identity, :postgres]
+    ],
+    "Ash.Domain": [section_order: [:admin, :resources]]
   ]
 
 config :ash, known_types: [AshPostgres.Timestamptz, AshPostgres.TimestamptzUsec]
@@ -73,6 +76,31 @@ config :starter_kit,
        "default-src 'self'; connect-src 'self'; img-src 'self' data:; " <>
          "style-src 'self' 'unsafe-inline'; script-src 'self'; " <>
          "base-uri 'self'; frame-ancestors 'self'; object-src 'none'"
+
+# The LiveView admin surfaces (AshAdmin, LiveDashboard) need a looser CSP than the
+# Inertia app: LiveView injects inline bootstrap and connects over a websocket.
+config :starter_kit,
+       :admin_content_security_policy,
+       "default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data:; " <>
+         "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; " <>
+         "base-uri 'self'; frame-ancestors 'self'; object-src 'none'"
+
+# Background jobs (R4). Oban runs on Postgres with a Postgres-based notifier (no
+# extra pub/sub infra). ash_oban merges each resource's triggers and scheduled
+# actions into this config at boot (see StarterKit.Application). The Cron plugin
+# drives them; the Pruner discards finished jobs after a week.
+config :starter_kit, Oban,
+  repo: StarterKit.Repo,
+  notifier: Oban.Notifiers.Postgres,
+  queues: [default: 10, mailers: 20],
+  plugins: [
+    Oban.Plugins.Cron,
+    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7}
+  ]
+
+# ash_oban jobs are system operations, so they run unauthorized — user-facing access
+# is still guarded by resource policies. `pro?: false` selects the OSS cron plugin.
+config :ash_oban, pro?: false, authorize?: false
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

@@ -12,8 +12,13 @@ defmodule StarterKit.Application do
       StarterKit.Repo,
       {DNSCluster, query: Application.get_env(:starter_kit, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: StarterKit.PubSub},
-      # Start a worker by calling: StarterKit.Worker.start_link(arg)
-      # {StarterKit.Worker, arg},
+      # Oban (R4). AshOban.config/2 merges each Ash resource's triggers and scheduled
+      # actions into the base Oban config from config.exs before Oban starts.
+      {Oban,
+       AshOban.config(
+         Application.fetch_env!(:starter_kit, :ash_domains),
+         Application.fetch_env!(:starter_kit, Oban)
+       )},
       # Start to serve requests, typically the last entry
       StarterKitWeb.Endpoint,
       {AshAuthentication.Supervisor, [otp_app: :starter_kit]}

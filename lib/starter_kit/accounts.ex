@@ -4,7 +4,14 @@ defmodule StarterKit.Accounts do
   that controllers and tests call.
   """
   use Ash.Domain,
-    otp_app: :starter_kit
+    otp_app: :starter_kit,
+    extensions: [AshAdmin.Domain]
+
+  # Surface this domain (and its resources) in AshAdmin (R5). Access is gated in the
+  # router: open in dev, admin-only in production.
+  admin do
+    show?(true)
+  end
 
   resources do
     resource StarterKit.Accounts.Token

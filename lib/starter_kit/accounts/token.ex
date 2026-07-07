@@ -8,12 +8,30 @@ defmodule StarterKit.Accounts.Token do
     domain: StarterKit.Accounts,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
-    extensions: [AshAuthentication.TokenResource]
+    extensions: [AshAuthentication.TokenResource, AshOban]
 
   policies do
     bypass(AshAuthentication.Checks.AshAuthenticationInteraction) do
       description("AshAuthentication can interact with the token resource")
       authorize_if(always())
+    end
+  end
+
+  # Example AshOban trigger (R4). A polling scheduler — NOT a database hook: once a
+  # day the scheduler runs the `where` query, finds expired tokens, and enqueues one
+  # `:destroy` job per matching row. This keeps the tokens table from growing without
+  # bound. It is the authoritative ash_oban usage example in this template.
+  oban do
+    triggers do
+      trigger :expunge_expired_tokens do
+        action(:destroy)
+        where(expr(expires_at < now()))
+        scheduler_cron("@daily")
+        queue(:default)
+        # Explicit module names keep enqueued jobs stable if the trigger is renamed.
+        worker_module_name(StarterKit.Accounts.Token.AshOban.Worker.ExpungeExpiredTokens)
+        scheduler_module_name(StarterKit.Accounts.Token.AshOban.Scheduler.ExpungeExpiredTokens)
+      end
     end
   end
 
@@ -54,7 +72,7 @@ defmodule StarterKit.Accounts.Token do
   end
 
   actions do
-    defaults([:read])
+    defaults([:read, :destroy])
 
     read :expired do
       description("Look up all expired tokens.")

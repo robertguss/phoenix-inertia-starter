@@ -3,6 +3,10 @@ config :starter_kit, token_signing_secret: "jOlKVjSgGbRsy14P7MRyb1zMhioN9FgM"
 config :bcrypt_elixir, log_rounds: 1
 config :ash, disable_async?: true
 
+# Oban jobs don't execute automatically in tests — enqueue them and assert with
+# `Oban.Testing`, or drain them explicitly with `Oban.drain_queue/2`.
+config :starter_kit, Oban, testing: :manual
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

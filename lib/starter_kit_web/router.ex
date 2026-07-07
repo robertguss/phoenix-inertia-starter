@@ -28,6 +28,27 @@ defmodule StarterKitWeb.Router do
     plug StarterKitWeb.Plugs.RequireAuthenticated
   end
 
+  # LiveView admin surfaces (AshAdmin, LiveDashboard) bring their own layouts, so
+  # they use a dedicated pipeline instead of the Inertia `:browser` one.
+  pipeline :admin_browser do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug :fetch_flash
+
+    plug :put_secure_browser_headers,
+         %{
+           "content-security-policy" =>
+             Application.compile_env(:starter_kit, :admin_content_security_policy)
+         }
+
+    plug :protect_from_forgery
+    plug StarterKitWeb.Plugs.FetchCurrentUser
+  end
+
+  pipeline :require_admin do
+    plug StarterKitWeb.Plugs.RequireAdmin
+  end
+
   scope "/", StarterKitWeb do
     pipe_through :browser
 
@@ -67,19 +88,24 @@ defmodule StarterKitWeb.Router do
     pipe_through :api
   end
 
-  # Enable LiveDashboard and Swoosh mailbox preview in development
-  if Application.compile_env(:starter_kit, :dev_routes) do
-    # If you want to use the LiveDashboard in production, you should put
-    # it behind authentication and allow only admins to access it.
-    # If your application does not have an admins-only section yet,
-    # you can use Plug.BasicAuth to set up some basic authentication
-    # as long as you are also using SSL (which you should anyway).
+  # Admin + observability surfaces (R5, R6). Mounted in every environment but gated
+  # by :require_admin — open in dev, admin-only in prod (AE4).
+  scope "/" do
+    pipe_through [:admin_browser, :require_admin]
+
+    import AshAdmin.Router
     import Phoenix.LiveDashboard.Router
 
+    ash_admin("/admin")
+    live_dashboard "/dashboard", metrics: StarterKitWeb.Telemetry
+  end
+
+  # The Swoosh mailbox preview is a development-only convenience (the Local adapter
+  # only stores mail in dev). It stays in both flavors (KTD7).
+  if Application.compile_env(:starter_kit, :dev_routes) do
     scope "/dev" do
       pipe_through [:fetch_session, :protect_from_forgery]
 
-      live_dashboard "/dashboard", metrics: StarterKitWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
   end

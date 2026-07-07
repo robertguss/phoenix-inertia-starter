@@ -65,7 +65,7 @@ jobs:
       # miss only costs a one-time PLT build, never correctness.
       - name: Restore newborn PLT cache
         id: plt
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: newborn/priv/plts
           key: ${{ runner.os }}-plt-${{ matrix.flavor }}-${{ hashFiles('newborn/mix.lock') }}
@@ -84,10 +84,10 @@ jobs:
           if find . -path ./deps -prune -o -name package.json -print | grep -q .; then
             echo "package.json still present"; exit 1
           fi
-          if grep -rniE 'inertia|phoenix_vite' lib config mix.exs; then
+          if grep -rniE 'inertia|phoenix_vite' lib config mix.exs README.md AGENTS.md mix.lock; then
             echo "inertia/phoenix_vite reference remains"; exit 1
           fi
-          if grep -rn 'PRUNE:' lib config mix.exs .github; then
+          if grep -rn 'PRUNE:' lib config mix.exs .github README.md AGENTS.md; then
             echo "prune marker remains"; exit 1
           fi
 
@@ -103,6 +103,12 @@ jobs:
         if: matrix.flavor == 'web'
         working-directory: newborn
         run: mix test --only playwright
+
+      # F3-CI: the birth-generated release Dockerfile actually builds (U4 proved it
+      # builds locally for --web; this keeps it honest in CI).
+      - name: Docker build smoke (--web)
+        if: matrix.flavor == 'web'
+        run: docker build -t ci_smoke_app:release newborn
 
       # AE3: removing the demo slice leaves a clean, green tree.
       - name: Demo removal stays green (--web)

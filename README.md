@@ -1,9 +1,11 @@
 # Phoenix Starter Kit
 
 A pinned, always-green **Phoenix 1.8 / Ash 3** template. One superset repo births
-either an **Inertia + React + TypeScript** web project or a **JSON:API** project
-via a single command — optimized so AI agents can start shipping features
-immediately from working, conventional code.
+<!-- PRUNE:WEB -->
+an **Inertia + React + TypeScript** web project, or
+<!-- PRUNE:END -->
+a **JSON:API** project via a single command — optimized so AI agents can start
+shipping features immediately from working, conventional code.
 
 > **This repository is the template itself — not an application.** Don't build
 > features here. Birth a project with `bin/new_project`, then build there. The
@@ -14,7 +16,7 @@ immediately from working, conventional code.
 
 ```bash
 # From a clean clone of this template:
-bin/new_project my_app --web     # Inertia + React + TypeScript web project
+bin/new_project my_app --web     # full-stack web project
 #   ...or...
 bin/new_project my_app --api     # JSON:API-only project (frontend pruned)
 
@@ -30,6 +32,7 @@ Options: `--dir PATH` (target directory, default `../NAME`), `--skip-gate` (skip
 the final gate for a faster look). The flavor flag is required — there is no
 default, so the choice is always explicit.
 
+<!-- PRUNE:WEB -->
 ## The two flavors
 
 | | `--web` | `--api` |
@@ -41,6 +44,7 @@ default, so the choice is always explicit.
 
 Both flavors keep the LiveView admin surfaces (AshAdmin, LiveDashboard) and the
 dev mailbox — those are self-contained islands independent of the rendering choice.
+<!-- PRUNE:END -->
 
 ## What's inside
 
@@ -91,14 +95,20 @@ On Fly Managed Postgres, run migrations against the direct (non-pooled) URL — 
 | API | ash_json_api / open_api_spex | 1.7.0 / 3.22.3 |
 | Jobs | oban / ash_oban | 2.23.0 / 0.8.10 |
 | Admin | ash_admin / phoenix_live_dashboard | 1.1.0 / 0.8.7 |
-| Web | inertia / phoenix_vite / @inertiajs/react | 2.6.2 / 0.4.3 / 2.3.27 |
-| Frontend | React / Vite / Tailwind | 19.2.7 / 8.x / 4.x |
 | Quality | credo / dialyxir / sobelow / mix_audit | 1.7.19 / 1.4.7 / 0.14.1 / 2.1.5 |
 | Testing | mimic / stream_data / phoenix_test_playwright | 2.3.0 / 1.3.0 / 0.15.0 |
 
-Versions are pinned (`mix.lock` and `assets/package-lock.json` are committed) and
-proven green together. Freshness is a deliberate refresh, not pull-latest — see
-[`docs/refresh.md`](docs/refresh.md).
+<!-- PRUNE:WEB -->
+### Frontend stack
+
+| Layer | Package | Version |
+|---|---|---|
+| Web | inertia / phoenix_vite / @inertiajs/react | 2.6.2 / 0.4.3 / 2.3.27 |
+| Frontend | React / Vite / Tailwind | 19.2.7 / 8.x / 4.x |
+<!-- PRUNE:END -->
+
+Versions are pinned (lockfiles are committed) and proven green together. Freshness
+is a deliberate refresh, not pull-latest — see [`docs/refresh.md`](docs/refresh.md).
 
 ## Contributions
 

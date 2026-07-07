@@ -52,7 +52,7 @@ if config_env() == :prod do
   # variable instead.
   secret_key_base = env!.("SECRET_KEY_BASE")
 
-  host = System.get_env("PHX_HOST") || "example.com"
+  host = env!.("PHX_HOST")
 
   config :starter_kit, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
@@ -113,21 +113,13 @@ if config_env() == :prod do
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
 
-  # ## Configuring the mailer
-  #
-  # In production you need to configure the mailer to use a different adapter.
-  # Here is an example configuration for Mailgun:
-  #
-  #     config :starter_kit, StarterKit.Mailer,
-  #       adapter: Swoosh.Adapters.Mailgun,
-  #       api_key: System.get_env("MAILGUN_API_KEY"),
-  #       domain: System.get_env("MAILGUN_DOMAIN")
-  #
-  # Most non-SMTP adapters require an API client. Swoosh supports Req, Hackney,
-  # and Finch out-of-the-box. This configuration is typically done at
-  # compile-time in your config/prod.exs:
-  #
-  #     config :swoosh, :api_client, Swoosh.ApiClient.Req
-  #
-  # See https://swoosh.hexdocs.pm/Swoosh.html#module-installation for details.
+  # Production mailer. Local storage is disabled in config/prod.exs, so a real
+  # adapter is required — drive it through `env!` so boot fails loud when the
+  # Mailgun credentials are unset instead of silently dropping mail. The
+  # `Swoosh.ApiClient.Req` API client is configured in config/prod.exs. Swap in a
+  # different Swoosh adapter (Sendgrid, SES, ...) if you don't use Mailgun.
+  config :starter_kit, StarterKit.Mailer,
+    adapter: Swoosh.Adapters.Mailgun,
+    api_key: env!.("MAILGUN_API_KEY"),
+    domain: env!.("MAILGUN_DOMAIN")
 end

@@ -3,8 +3,8 @@
 defmodule StarterKit.Notes.Note do
   @moduledoc """
   Demo Notes resource (R23) — the pattern corpus a newborn learns from: a
-  user-owned resource with owner-only policies, exposed to both the Inertia web UI
-  (U5 controllers) and JSON:API (U7 auth). `bin/remove_demo` deletes it wholesale.
+  user-owned resource with owner-only policies, exposed to the web UI (U5
+  controllers) and/or JSON:API (U7 auth). `bin/remove_demo` deletes it wholesale.
   """
   use Ash.Resource,
     otp_app: :starter_kit,

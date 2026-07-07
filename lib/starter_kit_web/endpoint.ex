@@ -1,6 +1,8 @@
 defmodule StarterKitWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :starter_kit
+  # PRUNE:WEB
   import PhoenixVite.Plug
+  # PRUNE:END
 
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
@@ -16,8 +18,10 @@ defmodule StarterKitWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
+  # PRUNE:WEB
   # In dev, redirect favicon requests to the Vite dev server; a no-op in prod.
   plug :favicon, dev_server: {PhoenixVite.Components, :has_vite_watcher?, [__MODULE__]}
+  # PRUNE:END
 
   # Serve at "/" the static files from "priv/static" directory.
   #

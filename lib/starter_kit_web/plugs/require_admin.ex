@@ -6,8 +6,10 @@ defmodule StarterKitWeb.Plugs.RequireAdmin do
   surface stays hidden. Relies on `FetchCurrentUser` populating `current_user`.
   """
   import Plug.Conn, only: [send_resp: 3, halt: 1]
+  # PRUNE:WEB
   import Phoenix.Controller, only: [redirect: 2]
   use StarterKitWeb, :verified_routes
+  # PRUNE:END
 
   def init(opts), do: opts
 
@@ -19,9 +21,11 @@ defmodule StarterKitWeb.Plugs.RequireAdmin do
       match?(%{admin?: true}, conn.assigns[:current_user]) ->
         conn
 
+      # PRUNE:WEB
       is_nil(conn.assigns[:current_user]) ->
         conn |> redirect(to: ~p"/sign-in") |> halt()
 
+      # PRUNE:END
       true ->
         conn |> send_resp(404, "Not Found") |> halt()
     end

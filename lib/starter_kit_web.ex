@@ -40,12 +40,15 @@ defmodule StarterKitWeb do
       use Phoenix.Controller, formats: [:html, :json]
 
       import Plug.Conn
+      # PRUNE:WEB
       import Inertia.Controller
+      # PRUNE:END
 
       unquote(verified_routes())
     end
   end
 
+  # PRUNE:WEB
   def html do
     quote do
       use Phoenix.Component
@@ -58,6 +61,8 @@ defmodule StarterKitWeb do
       unquote(verified_routes())
     end
   end
+
+  # PRUNE:END
 
   def verified_routes do
     quote do

@@ -1,0 +1,359 @@
+#!/usr/bin/env elixir
+
+# bin/new_project — births a new project from this template (KTD4). Copies the
+# template, renames the three name casings, prunes to the chosen flavor, installs
+# deps, sets up the database, and runs the full quality gate so the newborn is
+# proven green with zero manual steps (R21, R22, R23).
+#
+#   bin/new_project my_app --web            # Inertia + React + TS web project
+#   bin/new_project my_app --api            # JSON:API-only project (frontend pruned)
+#   bin/new_project my_app --api --dir ../x # explicit target directory
+#   bin/new_project my_app --web --skip-gate
+#
+# The flavor flag is required — no default, so an agent must be explicit. On a red
+# gate the newborn is left in place with the failing step printed.
+
+defmodule NewProject do
+  @template_root File.cwd!()
+  @reserved ~w(phoenix ash ecto oban elixir mix)
+
+  # Template-only artifacts a newborn should never carry.
+  @always_delete ~w(bin/new_project docs/plans .github/workflows/birth-matrix.yml)
+
+  # Whole web-only files/dirs deleted for --api (relative to the newborn root, with
+  # `APP` standing in for the renamed app name). Colocated prune manifest (KTD5).
+  @api_delete [
+    "assets",
+    "lib/APP_web/controllers/page_controller.ex",
+    "lib/APP_web/controllers/auth",
+    "lib/APP_web/controllers/note_controller.ex",
+    "lib/APP_web/plugs/inertia_share.ex",
+    "lib/APP_web/plugs/require_authenticated.ex",
+    "lib/APP_web/components/layouts.ex",
+    "lib/APP_web/components/layouts",
+    "test/APP_web/controllers",
+    "test/APP_web/admin_access_test.exs"
+  ]
+
+  def main(argv) do
+    {name, flavor, dir, skip_gate?} = parse!(argv)
+    names = casings(name)
+    target = Path.expand(dir || "../#{names.app}", @template_root)
+
+    ensure_target!(target)
+    info("Birthing #{names.app} (#{flavor}) into #{target}")
+
+    copy_template!(target)
+    Enum.each(@always_delete, &File.rm_rf!(Path.join(target, &1)))
+    rename!(target, names)
+    process_flavor!(target, flavor, names)
+
+    setup!(target, flavor)
+    unless skip_gate?, do: verify!(target, flavor)
+
+    next_steps(target, names, flavor, skip_gate?)
+  end
+
+  # --- args -----------------------------------------------------------------
+
+  defp parse!(argv) do
+    {opts, rest, invalid} =
+      OptionParser.parse(argv, strict: [web: :boolean, api: :boolean, dir: :string, skip_gate: :boolean])
+
+    if invalid != [], do: usage!("unknown option: #{inspect(invalid)}")
+
+    name =
+      case rest do
+        [name] -> name
+        [] -> usage!("missing project NAME")
+        _ -> usage!("expected exactly one NAME, got: #{inspect(rest)}")
+      end
+
+    flavor =
+      case {opts[:web], opts[:api]} do
+        {true, nil} -> :web
+        {nil, true} -> :api
+        {nil, nil} -> usage!("a flavor flag is required: --web or --api")
+        _ -> usage!("--web and --api are mutually exclusive")
+      end
+
+    {name, flavor, opts[:dir], opts[:skip_gate] || false}
+  end
+
+  defp usage!(message) do
+    IO.puts(:stderr, """
+    error: #{message}
+
+    usage: bin/new_project NAME (--web | --api) [--dir PATH] [--skip-gate]
+    """)
+
+    System.halt(2)
+  end
+
+  # --- name casings ---------------------------------------------------------
+
+  defp casings(name) do
+    app =
+      name
+      |> String.downcase()
+      |> String.replace(~r/[^a-z0-9]+/, "_")
+      |> String.trim("_")
+
+    validate!(app)
+
+    %{
+      app: app,
+      module: Macro.camelize(app),
+      slug: String.replace(app, "_", "-"),
+      concat: String.replace(app, "_", "")
+    }
+  end
+
+  defp validate!(app) do
+    cond do
+      app == "" ->
+        usage!("NAME must contain at least one letter or digit")
+
+      not Regex.match?(~r/^[a-z][a-z0-9_]*$/, app) ->
+        usage!("NAME must start with a letter and use only letters, digits, and underscores")
+
+      app in @reserved ->
+        usage!("NAME #{inspect(app)} is reserved (#{Enum.join(@reserved, ", ")})")
+
+      # "<app>_test" must fit Postgres's 63-byte identifier limit.
+      String.length(app) > 58 ->
+        usage!("NAME is too long (max 58 characters)")
+
+      true ->
+        :ok
+    end
+  end
+
+  # --- copy + rename --------------------------------------------------------
+
+  defp ensure_target!(target) do
+    if File.dir?(target) and File.ls!(target) != [] do
+      usage!("target directory #{target} already exists and is not empty")
+    end
+
+    File.mkdir_p!(target)
+  end
+
+  defp copy_template!(target) do
+    {_, 0} =
+      System.cmd(
+        "rsync",
+        [
+          "-a",
+          "--exclude=.git",
+          "--exclude=_build",
+          "--exclude=deps",
+          "--exclude=node_modules",
+          "--exclude=priv/static",
+          "--exclude=priv/plts",
+          "--exclude=.elixir_ls",
+          "./",
+          target <> "/"
+        ],
+        cd: @template_root
+      )
+  end
+
+  defp rename!(target, names) do
+    # Replace file contents first (paths still carry the template name), then move
+    # the paths themselves. Order of tokens is irrelevant — none is a substring of
+    # another in a way that collides.
+    for path <- text_files(target) do
+      replaced =
+        path
+        |> File.read!()
+        |> String.replace("StarterKit", names.module)
+        |> String.replace("starterkit", names.concat)
+        |> String.replace("starter_kit", names.app)
+        |> String.replace("starter-kit", names.slug)
+
+      File.write!(path, replaced)
+    end
+
+    rename_paths(target, names.app)
+  end
+
+  defp text_files(target) do
+    target
+    |> all_paths()
+    |> Enum.filter(&File.regular?/1)
+    |> Enum.reject(&binary_file?/1)
+  end
+
+  # Skip anything with a NUL byte in its first chunk (images, etc.).
+  defp binary_file?(path) do
+    case File.open(path, [:read, :binary], fn io -> IO.binread(io, 8000) end) do
+      {:ok, :eof} -> false
+      {:ok, chunk} -> String.contains?(chunk, <<0>>)
+      _ -> true
+    end
+  end
+
+  defp rename_paths(target, app) do
+    case Enum.find(all_paths(target), &String.contains?(Path.basename(&1), "starter_kit")) do
+      nil ->
+        :ok
+
+      path ->
+        renamed = String.replace(Path.basename(path), "starter_kit", app)
+        File.rename!(path, Path.join(Path.dirname(path), renamed))
+        rename_paths(target, app)
+    end
+  end
+
+  defp all_paths(target), do: Path.wildcard(Path.join(target, "**/*"), match_dot: true)
+
+  # --- flavor pruning -------------------------------------------------------
+
+  defp process_flavor!(target, :api, names) do
+    Enum.each(@api_delete, fn rel ->
+      File.rm_rf!(Path.join(target, String.replace(rel, "APP", names.app)))
+    end)
+
+    prune_empty_dirs(target)
+    apply_markers(target, :api)
+    info("Pruned the web surface for the --api flavor")
+  end
+
+  defp process_flavor!(target, :web, _names) do
+    apply_markers(target, :web)
+  end
+
+  # `# PRUNE:WEB` .. `# PRUNE:END` blocks: --api drops the whole block, --web keeps
+  # the enclosed code and drops only the marker lines. Either way no marker survives.
+  defp apply_markers(target, flavor) do
+    for path <- text_files(target), String.contains?(File.read!(path), "PRUNE:WEB") do
+      lines = path |> File.read!() |> String.split("\n")
+
+      kept =
+        case flavor do
+          :api -> drop_blocks(lines)
+          :web -> Enum.reject(lines, &marker_line?/1)
+        end
+
+      File.write!(path, Enum.join(kept, "\n"))
+    end
+  end
+
+  defp drop_blocks(lines) do
+    {kept, _} =
+      Enum.reduce(lines, {[], false}, fn line, {acc, skipping?} ->
+        cond do
+          String.contains?(line, "PRUNE:WEB") -> {acc, true}
+          String.contains?(line, "PRUNE:END") -> {acc, false}
+          skipping? -> {acc, true}
+          true -> {[line | acc], false}
+        end
+      end)
+
+    Enum.reverse(kept)
+  end
+
+  defp marker_line?(line), do: String.contains?(line, "PRUNE:WEB") or String.contains?(line, "PRUNE:END")
+
+  defp prune_empty_dirs(target) do
+    target
+    |> all_paths()
+    |> Enum.filter(&File.dir?/1)
+    |> Enum.sort_by(&(-String.length(&1)))
+    |> Enum.each(fn dir -> if File.ls!(dir) == [], do: File.rmdir(dir) end)
+  end
+
+  # --- setup + verify -------------------------------------------------------
+
+  defp setup!(target, flavor) do
+    mix!(target, ["deps.get"], "fetching dependencies")
+
+    if flavor == :api do
+      mix!(target, ["deps.unlock", "--unused"], "shedding pruned deps from mix.lock")
+    end
+
+    mix!(target, ["compile"], "compiling (the rename verifier)")
+    mix!(target, ["usage_rules.sync", "--yes"], "syncing AGENTS.md for the flavor")
+    mix!(target, ["format"], "formatting")
+
+    if flavor == :web do
+      npm!(target, ["ci"], "installing npm packages")
+      npm!(target, ["run", "typecheck"], "type-checking the frontend")
+      npm!(target, ["run", "build"], "building the frontend")
+    end
+
+    git_init!(target)
+  end
+
+  defp verify!(target, _flavor) do
+    info("Running the quality gate (`mix precommit`)...")
+
+    case System.cmd("mix", ["precommit"], cd: target, into: IO.stream(:stdio, :line)) do
+      {_, 0} -> info("Gate green.")
+      {_, status} -> die("the quality gate failed — the newborn is at #{target}", status)
+    end
+  end
+
+  defp git_init!(target) do
+    {_, 0} = System.cmd("git", ["init", "-q"], cd: target)
+    {_, 0} = System.cmd("git", ["add", "-A"], cd: target)
+
+    {_, 0} =
+      System.cmd("git", ["commit", "-q", "-m", "Initial commit from starter template"],
+        cd: target,
+        env: [{"GIT_AUTHOR_NAME", "new_project"}, {"GIT_AUTHOR_EMAIL", "new_project@example.com"},
+         {"GIT_COMMITTER_NAME", "new_project"}, {"GIT_COMMITTER_EMAIL", "new_project@example.com"}]
+      )
+  end
+
+  defp mix!(target, args, what) do
+    info(what)
+
+    case System.cmd("mix", args, cd: target, into: IO.stream(:stdio, :line)) do
+      {_, 0} -> :ok
+      {_, status} -> die("`mix #{Enum.join(args, " ")}` failed while #{what}", status)
+    end
+  end
+
+  defp npm!(target, args, what) do
+    info(what)
+    assets = Path.join(target, "assets")
+
+    case System.cmd("npm", args, cd: assets, into: IO.stream(:stdio, :line)) do
+      {_, 0} -> :ok
+      {_, status} -> die("`npm #{Enum.join(args, " ")}` failed while #{what}", status)
+    end
+  end
+
+  # --- output ---------------------------------------------------------------
+
+  defp info(msg), do: IO.puts("• #{msg}")
+
+  defp die(msg, status) do
+    IO.puts(:stderr, "\nerror: #{msg}")
+    System.halt(status)
+  end
+
+  defp next_steps(target, names, flavor, skip_gate?) do
+    surface =
+      if flavor == :web,
+        do: "Inertia + React web UI at /",
+        else: "JSON:API at /api/v1 (docs at /api/v1/docs)"
+
+    IO.puts("""
+
+    #{names.module} is born (#{flavor}).
+
+      cd #{Path.relative_to_cwd(target)}
+    #{if skip_gate?, do: "  mix precommit          # verify the gate (skipped)\n", else: ""}\
+      mix phx.server         # #{surface}
+      fly launch --no-deploy # generate Dockerfile/fly.toml when ready to deploy
+
+    The demo Notes slice ships inside — run `bin/remove_demo` once you have real
+    features. Build with an agent: point it at AGENTS.md.
+    """)
+  end
+end
+
+NewProject.main(System.argv())

@@ -94,11 +94,13 @@ defmodule StarterKit.MixProject do
       {:ash_json_api, "~> 1.7"},
       {:open_api_spex, "~> 3.22"},
 
+      # PRUNE:WEB
       # Web flavor (R9): Inertia.js server adapter (pinned to the stable 2.x line,
       # KTD1) + phoenix_vite, which feeds Vite's manifest into Phoenix's static
       # digesting so no phx.digest hacks are needed (KTD2). Both pruned for --api.
       {:inertia, "~> 2.6"},
       {:phoenix_vite, "~> 0.4"},
+      # PRUNE:END
 
       # Quality gate (KTD10: Styler deliberately omitted — credo --strict covers style,
       # and Spark.Formatter is the only formatter plugin).
@@ -130,16 +132,25 @@ defmodule StarterKit.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "assets.setup", "ash.setup", "run priv/repo/seeds.exs"],
+      setup: [
+        "deps.get",
+        # PRUNE:WEB
+        "assets.setup",
+        # PRUNE:END
+        "ash.setup",
+        "run priv/repo/seeds.exs"
+      ],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ash.setup --quiet", "test"],
+      # PRUNE:WEB
       # Vite asset pipeline via phoenix_vite (web flavor). `assets.deploy` is what
       # the birth-generated Dockerfile calls (KTD6); it produces the manifest that
       # Phoenix's cache_static_manifest_latest consumes — no phx.digest.
       "assets.setup": ["phoenix_vite.npm assets install"],
       "assets.build": ["phoenix_vite.npm vite build"],
       "assets.deploy": ["assets.build"],
+      # PRUNE:END
       # Single source of truth for the quality gate (KTD12). CI and docs reference
       # this alias by name; dialyzer is kept last because it is the slowest step.
       precommit: [

@@ -67,6 +67,7 @@ if config_env() == :prod do
     ],
     secret_key_base: secret_key_base
 
+  # PRUNE:WEB
   # Serve Vite-built assets via the manifest phoenix_vite generates (no phx.digest).
   # Guarded on the manifest existing: `mix assets.deploy` evaluates this file while
   # BUILDING the manifest (which does not exist yet), so skip it then; the release
@@ -75,6 +76,8 @@ if config_env() == :prod do
     config :starter_kit, StarterKitWeb.Endpoint,
       cache_static_manifest_latest: PhoenixVite.cache_static_manifest_latest(:starter_kit)
   end
+
+  # PRUNE:END
 
   config :starter_kit, token_signing_secret: env!.("TOKEN_SIGNING_SECRET")
 

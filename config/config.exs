@@ -65,6 +65,7 @@ config :mime,
   extensions: %{"json" => "application/vnd.api+json"},
   types: %{"application/vnd.api+json" => ["json"]}
 
+# PRUNE:WEB
 # Inertia.js server adapter (web flavor; pruned for --api).
 config :inertia, endpoint: StarterKitWeb.Endpoint
 
@@ -77,6 +78,9 @@ config :phoenix_vite, PhoenixVite.Npm,
     env: %{"MIX_BUILD_PATH" => Mix.Project.build_path()}
   ]
 
+# PRUNE:END
+
+# PRUNE:WEB
 # Content-Security-Policy applied by the browser pipeline. This baseline fits the
 # Inertia + Vite production build, where every asset is served same-origin. dev.exs
 # relaxes it for the Vite dev server + HMR. Extend it for any CDN, analytics, or font
@@ -87,8 +91,10 @@ config :starter_kit,
          "style-src 'self' 'unsafe-inline'; script-src 'self'; " <>
          "base-uri 'self'; frame-ancestors 'self'; object-src 'none'"
 
-# The LiveView admin surfaces (AshAdmin, LiveDashboard) need a looser CSP than the
-# Inertia app: LiveView injects inline bootstrap and connects over a websocket.
+# PRUNE:END
+
+# The LiveView admin surfaces (AshAdmin, LiveDashboard) need a looser CSP than a
+# plain page: LiveView injects inline bootstrap and connects over a websocket.
 config :starter_kit,
        :admin_content_security_policy,
        "default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data:; " <>

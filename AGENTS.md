@@ -18,10 +18,12 @@ ships red.
 - **Domain layer is Ash 3**, not raw Ecto or Phoenix contexts. All domain logic
   lives in Ash resources and actions. The package usage-rules synced below are
   authoritative — consult them before touching domain code.
+<!-- PRUNE:WEB -->
 - **The web flavor renders through Inertia.js + React 19 + TypeScript (Vite)**,
   _not_ LiveView/HEEx. LiveView appears only as the AshAdmin and LiveDashboard
   surfaces. For product UI, build pages under `assets/js/` — ignore the generic
   Phoenix HEEx / `core_components` / `<.input>` advice in the synced rules.
+<!-- PRUNE:END -->
 - **The API flavor exposes resources via AshJsonApi** with a generated OpenAPI
   spec.
 - Use the bundled `Req` for HTTP requests; avoid `:httpoison`, `:tesla`, `:httpc`.

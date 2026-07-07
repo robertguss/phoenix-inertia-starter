@@ -2,7 +2,7 @@
 defmodule StarterKit.Notes do
   @moduledoc """
   Demo Notes domain (R23). Exposes the owner-scoped `Note` resource over JSON:API
-  and via code interfaces the Inertia controller calls. Removed by `bin/remove_demo`.
+  and via code interfaces the web controller calls. Removed by `bin/remove_demo`.
   """
   use Ash.Domain,
     otp_app: :starter_kit,

@@ -1,6 +1,7 @@
 defmodule StarterKitWeb.Router do
   use StarterKitWeb, :router
 
+  # PRUNE:WEB
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -19,6 +20,8 @@ defmodule StarterKitWeb.Router do
     plug StarterKitWeb.Plugs.InertiaShare
   end
 
+  # PRUNE:END
+
   pipeline :api do
     plug :accepts, ["json"]
     # Sets the Ash actor from an API key or JWT bearer token (R14). Never halts;
@@ -27,13 +30,16 @@ defmodule StarterKitWeb.Router do
     plug StarterKitWeb.Plugs.ApiAuth
   end
 
+  # PRUNE:WEB
   # Gate for authenticated-only pages; redirects anonymous users to sign-in.
   pipeline :require_authenticated do
     plug StarterKitWeb.Plugs.RequireAuthenticated
   end
 
+  # PRUNE:END
+
   # LiveView admin surfaces (AshAdmin, LiveDashboard) bring their own layouts, so
-  # they use a dedicated pipeline instead of the Inertia `:browser` one.
+  # they use a dedicated pipeline separate from any page-rendering one.
   pipeline :admin_browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -53,6 +59,7 @@ defmodule StarterKitWeb.Router do
     plug StarterKitWeb.Plugs.RequireAdmin
   end
 
+  # PRUNE:WEB
   scope "/", StarterKitWeb do
     pipe_through :browser
 
@@ -95,6 +102,8 @@ defmodule StarterKitWeb.Router do
     put "/notes/:id", NoteController, :update
     delete "/notes/:id", NoteController, :delete
   end
+
+  # PRUNE:END
 
   # JSON:API (R13, R14). The AshJsonApi router serves the resource routes plus the
   # generated OpenAPI spec at /api/v1/open_api; Swagger UI renders it at /api/v1/docs.

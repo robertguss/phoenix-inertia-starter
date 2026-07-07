@@ -20,7 +20,11 @@ config :ash, known_types: [AshPostgres.Timestamptz, AshPostgres.TimestamptzUsec]
 config :starter_kit,
   ecto_repos: [StarterKit.Repo],
   generators: [timestamp_type: :utc_datetime],
-  ash_domains: [StarterKit.Accounts],
+  ash_domains: [
+    StarterKit.Accounts,
+    # DEMO: demo Notes domain — bin/remove_demo strips this line
+    StarterKit.Notes
+  ],
   ash_authentication: [return_error_on_invalid_magic_link_token?: true]
 
 # Configure the endpoint

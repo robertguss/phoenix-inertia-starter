@@ -5,7 +5,11 @@ defmodule StarterKitWeb.ApiRouter do
   under `/api/v1`, and the Swagger UI at `/api/v1/docs` reads the spec from here.
   """
   use AshJsonApi.Router,
-    domains: [StarterKit.Accounts],
+    domains: [
+      StarterKit.Accounts,
+      # DEMO: demo Notes domain — bin/remove_demo removes this entry
+      StarterKit.Notes
+    ],
     open_api: "/open_api",
     open_api_title: "StarterKit API",
     open_api_version: "1.0.0"

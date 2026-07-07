@@ -86,6 +86,14 @@ defmodule StarterKitWeb.Router do
 
     get "/settings", Auth.SettingsController, :edit
     put "/settings/password", Auth.SettingsController, :update_password
+
+    # DEMO: Notes vertical slice (R23). bin/remove_demo strips these NoteController routes.
+    get "/notes", NoteController, :index
+    get "/notes/new", NoteController, :new
+    post "/notes", NoteController, :create
+    get "/notes/:id/edit", NoteController, :edit
+    put "/notes/:id", NoteController, :update
+    delete "/notes/:id", NoteController, :delete
   end
 
   # JSON:API (R13, R14). The AshJsonApi router serves the resource routes plus the

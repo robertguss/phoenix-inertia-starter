@@ -1,0 +1,135 @@
+name: Birth matrix
+
+# The honesty mechanism (R16, KTD5): every push births BOTH flavors from the
+# template and runs the newborn's own gate, so a change that breaks web or api is
+# caught immediately. The web leg additionally runs the Playwright E2E and proves
+# the demo-removal path stays green (AE3); the api leg asserts the prune left no
+# web residue (AE1). A weekly cron surfaces upstream rot (KTD11).
+#
+# Action SHAs are pinned (supply-chain) and refreshed by Dependabot.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  birth:
+    name: born --${{ matrix.flavor }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor: [web, api]
+    env:
+      MIX_ENV: test
+    services:
+      db:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          TZ: UTC
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Elixir / OTP
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24"
+
+      # Birth into the workspace without the gate, so the cached PLT can be slotted
+      # in before dialyzer runs (a cold PLT build is 5-10 min — see the plan's Risks).
+      - name: Birth a newborn
+        run: elixir bin/new_project ci_smoke_app --${{ matrix.flavor }} --dir newborn --skip-gate
+
+      # Keyed on the newborn's own mix.lock (identical across runs of a flavor), so a
+      # miss only costs a one-time PLT build, never correctness.
+      - name: Restore newborn PLT cache
+        id: plt
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: newborn/priv/plts
+          key: ${{ runner.os }}-plt-${{ matrix.flavor }}-${{ hashFiles('newborn/mix.lock') }}
+          restore-keys: ${{ runner.os }}-plt-${{ matrix.flavor }}-
+
+      - name: Gate the newborn
+        working-directory: newborn
+        run: mix precommit
+
+      # AE1: the --api prune leaves no web surface behind.
+      - name: Assert no web residue (--api)
+        if: matrix.flavor == 'api'
+        working-directory: newborn
+        run: |
+          test ! -d assets || { echo "assets/ still present"; exit 1; }
+          if find . -path ./deps -prune -o -name package.json -print | grep -q .; then
+            echo "package.json still present"; exit 1
+          fi
+          if grep -rniE 'inertia|phoenix_vite' lib config mix.exs README.md AGENTS.md; then
+            echo "inertia/phoenix_vite reference remains"; exit 1
+          fi
+          # mix.lock: match only a real locked package entry (`  "inertia": {...}`),
+          # not a kept dep's transitive optional-dep mention — e.g. ash_phoenix's
+          # lock line lists `{:inertia, ..., optional: true}`, which is not residue.
+          if grep -nE '^[[:space:]]*"(inertia|phoenix_vite)":' mix.lock; then
+            echo "inertia/phoenix_vite still locked"; exit 1
+          fi
+          if grep -rn 'PRUNE:' lib config mix.exs .github README.md AGENTS.md; then
+            echo "prune marker remains"; exit 1
+          fi
+
+      # Browser E2E (R17, AE2): install the browser, then run the :playwright tests.
+      - name: Install Playwright browser (--web)
+        if: matrix.flavor == 'web'
+        working-directory: newborn
+        run: |
+          npm ci --prefix assets
+          npx --yes --prefix assets playwright install chromium --with-deps
+
+      - name: Playwright E2E (--web)
+        if: matrix.flavor == 'web'
+        working-directory: newborn
+        run: mix test --only playwright
+
+      # F3-CI: the birth-generated release Dockerfile actually builds (U4 proved it
+      # builds locally for --web; this keeps it honest in CI).
+      - name: Docker build smoke (--web)
+        if: matrix.flavor == 'web'
+        run: docker build -t ci_smoke_app:release newborn
+
+      # AE3: removing the demo slice leaves a clean, green tree.
+      - name: Demo removal stays green (--web)
+        if: matrix.flavor == 'web'
+        working-directory: newborn
+        run: |
+          ./bin/remove_demo --skip-gate
+          if grep -rn 'DEMO' lib test config assets/js; then
+            echo "DEMO marker remains after removal"; exit 1
+          fi
+          mix precommit
+
+      - name: Save newborn PLT cache
+        if: steps.plt.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: newborn/priv/plts
+          key: ${{ runner.os }}-plt-${{ matrix.flavor }}-${{ hashFiles('newborn/mix.lock') }}

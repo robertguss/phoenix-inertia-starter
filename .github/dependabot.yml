@@ -1,0 +1,31 @@
+# Anti-rot automation (R26, mechanical half). Dependabot proposes dependency bumps
+# on a monthly cadence, grouped so review stays manageable; a human runs the refresh
+# workflow (gate + birth matrix) before merging. Covers the Elixir deps, the web
+# flavor's npm packages, and the pinned GitHub Actions SHAs.
+version: 2
+updates:
+  - package-ecosystem: mix
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      elixir:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: "/assets"
+    schedule:
+      interval: monthly
+    groups:
+      frontend:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

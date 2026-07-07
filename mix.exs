@@ -118,6 +118,12 @@ defmodule StarterKit.MixProject do
       # Testing harness (R17): Mimic for mocks, stream_data for property tests.
       # Ash.Generator (in :ash) supplies fixtures — no separate factory library.
       {:mimic, "~> 2.3", only: :test},
+      # PRUNE:WEB
+      # Browser E2E (R17, KTD8): drives the Inertia UI in a real browser. Tagged
+      # `:playwright` and excluded from the fast gate; CI's birth-matrix web leg
+      # runs it via `mix test --only playwright`.
+      {:phoenix_test_playwright, "~> 0.15", only: :test, runtime: false},
+      # PRUNE:END
       # No :only restriction — :ash depends on stream_data in all envs, so scoping
       # it here would diverge from ash/mix.exs.
       {:stream_data, "~> 1.0"}

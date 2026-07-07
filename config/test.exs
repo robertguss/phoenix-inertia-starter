@@ -27,6 +27,14 @@ config :starter_kit, StarterKitWeb.Endpoint,
   secret_key_base: "NJ3b5K6UmADXP7aaHyqI1s87V7y2H3DneUfRhValRzy8XGF4K+QOmYbC+QlmdxBU",
   server: false
 
+# PRUNE:WEB
+# Browser E2E (R17, KTD8): Playwright drives the real app, so the endpoint must
+# actually serve. Only the `:playwright`-tagged tests use it (`mix test --only
+# playwright`); the fast gate leaves the server off. Pruned for --api.
+config :starter_kit, StarterKitWeb.Endpoint, server: true
+config :phoenix_test, otp_app: :starter_kit, playwright: [browser: :chromium]
+# PRUNE:END
+
 # In test we don't send emails
 config :starter_kit, StarterKit.Mailer, adapter: Swoosh.Adapters.Test
 

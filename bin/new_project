@@ -32,7 +32,8 @@ defmodule NewProject do
     "lib/APP_web/components/layouts.ex",
     "lib/APP_web/components/layouts",
     "test/APP_web/controllers",
-    "test/APP_web/admin_access_test.exs"
+    "test/APP_web/admin_access_test.exs",
+    "test/e2e"
   ]
 
   def main(argv) do

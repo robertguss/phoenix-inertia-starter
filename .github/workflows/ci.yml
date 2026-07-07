@@ -1,0 +1,101 @@
+name: CI
+
+# The template's own quality gate. The birth matrix (both flavors) lives in
+# birth-matrix.yml. Action SHAs are pinned for supply-chain safety and refreshed
+# by the github-actions Dependabot ecosystem (see .github/dependabot.yml).
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  # Weekly rot check (KTD11): the pinned snapshot is re-proven even without a push.
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: mix precommit
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+    services:
+      db:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          TZ: UTC
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Elixir / OTP
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+
+      - name: Cache deps and _build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      # PLT cache is split from deps/_build: the PLT is keyed on mix.lock and
+      # reused by the birth matrix too (newborn deps are identical to the template's).
+      - name: Restore PLT cache
+        id: plt_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plt-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-plt-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      # PRUNE:WEB
+      # Frontend typecheck + production build (web flavor). Runs after deps.get so
+      # the `phoenix_vite` file:../deps npm dependency resolves. `vite build` alone
+      # doesn't type-check, so `tsc --noEmit` runs first.
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24"
+
+      - name: Frontend typecheck and build
+        run: |
+          npm ci --prefix assets
+          npm run typecheck --prefix assets
+          npm run build --prefix assets
+      # PRUNE:END
+
+      - name: Compile dependencies
+        run: mix deps.compile
+
+      - name: Build PLT
+        if: steps.plt_cache.outputs.cache-hit != 'true'
+        run: mix dialyzer --plt
+
+      - name: Save PLT cache
+        if: steps.plt_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plt-${{ hashFiles('**/mix.lock') }}
+
+      # Single source of truth for the gate (KTD12): the `mix precommit` alias.
+      - name: Quality gate
+        run: mix precommit

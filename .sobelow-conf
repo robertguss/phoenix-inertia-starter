@@ -1,0 +1,9 @@
+# Sobelow security-analysis config. Read by `mix sobelow --config` (part of `mix precommit`).
+[
+  verbose: false,
+  private: false,
+  # Honor `# sobelow_skip` comments placed next to reviewed, accepted findings.
+  skip: true,
+  # Fail the gate (non-zero exit) on any finding at or above this confidence level.
+  exit: "low"
+]

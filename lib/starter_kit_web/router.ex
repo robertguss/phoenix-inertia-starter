@@ -1,8 +1,30 @@
 defmodule StarterKitWeb.Router do
   use StarterKitWeb, :router
 
+  pipeline :browser do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug :fetch_flash
+    plug :put_root_layout, html: {StarterKitWeb.Layouts, :root}
+    plug :protect_from_forgery
+
+    plug :put_secure_browser_headers,
+         %{
+           "content-security-policy" =>
+             Application.compile_env(:starter_kit, :content_security_policy)
+         }
+
+    plug Inertia.Plug
+  end
+
   pipeline :api do
     plug :accepts, ["json"]
+  end
+
+  scope "/", StarterKitWeb do
+    pipe_through :browser
+
+    get "/", PageController, :home
   end
 
   scope "/api", StarterKitWeb do

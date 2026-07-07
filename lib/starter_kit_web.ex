@@ -40,6 +40,20 @@ defmodule StarterKitWeb do
       use Phoenix.Controller, formats: [:html, :json]
 
       import Plug.Conn
+      import Inertia.Controller
+
+      unquote(verified_routes())
+    end
+  end
+
+  def html do
+    quote do
+      use Phoenix.Component
+
+      # Only what the Inertia root layout needs — this app renders through React,
+      # not HEEx, so there is no core-components layer.
+      import Phoenix.Controller, only: [get_csrf_token: 0]
+      import Inertia.HTML
 
       unquote(verified_routes())
     end

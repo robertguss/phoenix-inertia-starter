@@ -52,6 +52,28 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Inertia.js server adapter (web flavor; pruned for --api).
+config :inertia, endpoint: StarterKitWeb.Endpoint
+
+# phoenix_vite: how to invoke the local npm/vite toolchain for asset install/dev/build.
+config :phoenix_vite, PhoenixVite.Npm,
+  assets: [args: [], cd: Path.expand("../assets", __DIR__)],
+  vite: [
+    args: ~w(exec -- vite),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"MIX_BUILD_PATH" => Mix.Project.build_path()}
+  ]
+
+# Content-Security-Policy applied by the browser pipeline. This baseline fits the
+# Inertia + Vite production build, where every asset is served same-origin. dev.exs
+# relaxes it for the Vite dev server + HMR. Extend it for any CDN, analytics, or font
+# host your app talks to.
+config :starter_kit,
+       :content_security_policy,
+       "default-src 'self'; connect-src 'self'; img-src 'self' data:; " <>
+         "style-src 'self' 'unsafe-inline'; script-src 'self'; " <>
+         "base-uri 'self'; frame-ancestors 'self'; object-src 'none'"
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

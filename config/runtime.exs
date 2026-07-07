@@ -67,6 +67,15 @@ if config_env() == :prod do
     ],
     secret_key_base: secret_key_base
 
+  # Serve Vite-built assets via the manifest phoenix_vite generates (no phx.digest).
+  # Guarded on the manifest existing: `mix assets.deploy` evaluates this file while
+  # BUILDING the manifest (which does not exist yet), so skip it then; the release
+  # re-evaluates runtime.exs at boot with the manifest present.
+  if File.exists?(Application.app_dir(:starter_kit, "priv/static/.vite/manifest.json")) do
+    config :starter_kit, StarterKitWeb.Endpoint,
+      cache_static_manifest_latest: PhoenixVite.cache_static_manifest_latest(:starter_kit)
+  end
+
   config :starter_kit, token_signing_secret: env!.("TOKEN_SIGNING_SECRET")
 
   # ## SSL Support

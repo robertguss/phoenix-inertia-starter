@@ -34,3 +34,11 @@ starter_kit-*.tar
 .env.*
 !.env.example
 
+# Node modules for the Vite/React assets (web flavor).
+/assets/node_modules/
+
+# Vite owns priv/static entirely: hashed assets + manifest from the build, and
+# passthrough files (favicon.ico, robots.txt) copied from assets/public. All
+# generated — the source of truth is assets/.
+/priv/static/
+

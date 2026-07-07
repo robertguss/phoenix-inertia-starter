@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.inertia_title>{assigns[:page_title]}</.inertia_title>
+    <.inertia_head content={@inertia_head} />
+    <PhoenixVite.Components.assets
+      names={["js/app.tsx", "css/app.css"]}
+      manifest={{:starter_kit, "priv/static/.vite/manifest.json"}}
+      dev_server={PhoenixVite.Components.has_vite_watcher?(StarterKitWeb.Endpoint)}
+      to_url={fn p -> static_url(@conn, p) end}
+    />
+  </head>
+  <body class="h-full bg-background text-foreground">
+    {@inner_content}
+  </body>
+</html>

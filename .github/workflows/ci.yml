@@ -63,6 +63,20 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
+      # Frontend typecheck + production build (web flavor). Runs after deps.get so
+      # the `phoenix_vite` file:../deps npm dependency resolves. `vite build` alone
+      # doesn't type-check, so `tsc --noEmit` runs first.
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24"
+
+      - name: Frontend typecheck and build
+        run: |
+          npm ci --prefix assets
+          npm run typecheck --prefix assets
+          npm run build --prefix assets
+
       - name: Compile dependencies
         run: mix deps.compile
 

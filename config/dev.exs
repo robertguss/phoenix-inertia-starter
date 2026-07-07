@@ -20,11 +20,14 @@ config :starter_kit, StarterKitWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}],
+  # In development, static assets are served by the Vite dev server (HMR).
+  static_url: [host: "localhost", port: 5173],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
   secret_key_base: "HJ1XgHDesE2xQHUnxyHFzbR7b84JSMOv4TZUIaFkhPEhAX/v3f9KIZQJWcmi0V1w",
-  watchers: []
+  # Run the Vite dev server as a watcher alongside `mix phx.server`.
+  watchers: [vite: {PhoenixVite.Npm, :run, [:vite, ~w(dev)]}]
 
 # ## SSL Support
 #
@@ -51,6 +54,17 @@ config :starter_kit, StarterKitWeb.Endpoint,
 
 # Enable dev routes for dashboard and mailbox
 config :starter_kit, dev_routes: true, token_signing_secret: "lmfm7muFcUQTO8jcDPYp6qFszXBrOVxe"
+
+# Relax the CSP for the Vite dev server: module scripts and styles are served from
+# :5173, HMR runs over a websocket, and React Fast Refresh needs 'unsafe-eval'.
+config :starter_kit,
+       :content_security_policy,
+       "default-src 'self'; " <>
+         "connect-src 'self' ws://localhost:5173 http://localhost:5173; " <>
+         "img-src 'self' data:; " <>
+         "style-src 'self' 'unsafe-inline' http://localhost:5173; " <>
+         "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173; " <>
+         "base-uri 'self'; frame-ancestors 'self'; object-src 'none'"
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"

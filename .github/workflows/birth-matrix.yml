@@ -84,8 +84,14 @@ jobs:
           if find . -path ./deps -prune -o -name package.json -print | grep -q .; then
             echo "package.json still present"; exit 1
           fi
-          if grep -rniE 'inertia|phoenix_vite' lib config mix.exs README.md AGENTS.md mix.lock; then
+          if grep -rniE 'inertia|phoenix_vite' lib config mix.exs README.md AGENTS.md; then
             echo "inertia/phoenix_vite reference remains"; exit 1
+          fi
+          # mix.lock: match only a real locked package entry (`  "inertia": {...}`),
+          # not a kept dep's transitive optional-dep mention — e.g. ash_phoenix's
+          # lock line lists `{:inertia, ..., optional: true}`, which is not residue.
+          if grep -nE '^[[:space:]]*"(inertia|phoenix_vite)":' mix.lock; then
+            echo "inertia/phoenix_vite still locked"; exit 1
           fi
           if grep -rn 'PRUNE:' lib config mix.exs .github README.md AGENTS.md; then
             echo "prune marker remains"; exit 1

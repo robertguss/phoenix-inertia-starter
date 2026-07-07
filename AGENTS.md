@@ -30,8 +30,11 @@ ships red.
 
 ## Testing conventions (deliberately plural)
 
+<!-- PRUNE:WEB -->
 - `Phoenix.ConnTest` + `Inertia.Testing` for web-flavor controller assertions
-  (props/component, not rendered HTML); plain `Phoenix.ConnTest` for JSON:API.
+  (props/component, not rendered HTML).
+<!-- PRUNE:END -->
+- Plain `Phoenix.ConnTest` for JSON:API controller assertions.
 - `Ash.Generator` fixtures (see `test/support/generators.ex`), `Mimic` for mocks,
   `stream_data` for property tests — no separate factory library.
 <!-- PRUNE:WEB -->
@@ -48,12 +51,14 @@ deliberately-removable code.
 
 ## Blessed patterns (build new work like these)
 
+<!-- PRUNE:WEB -->
 - **Forms:** page components under `assets/js/pages/**` built with the `field.tsx`
   helper (`@/components/field`) and Inertia's `useForm` — see
   `assets/js/pages/notes/form.tsx`. The shipped shadcn `Form` and `Dialog`
   components (`assets/js/components/ui/`) are the copied-in core set (R10) and are
   both kept; reach for the `useForm` idiom for new forms and `Dialog` for
   confirmations (demoed in `assets/js/pages/notes/index.tsx`).
+<!-- PRUNE:END -->
 - **Vertical slice:** an Ash resource under `lib/starter_kit/notes/` plus a
   controller at `lib/starter_kit_web/controllers/note_controller.ex` — model new
   CRUD work on that pairing.

@@ -15,16 +15,52 @@ defmodule StarterKitWeb.Router do
          }
 
     plug Inertia.Plug
+    plug StarterKitWeb.Plugs.FetchCurrentUser
+    plug StarterKitWeb.Plugs.InertiaShare
   end
 
   pipeline :api do
     plug :accepts, ["json"]
   end
 
+  # Gate for authenticated-only pages; redirects anonymous users to sign-in.
+  pipeline :require_authenticated do
+    plug StarterKitWeb.Plugs.RequireAuthenticated
+  end
+
   scope "/", StarterKitWeb do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    # Auth (KTD3, Pattern B): plain controllers + Inertia pages, no LiveView.
+    get "/sign-in", Auth.SessionController, :new
+    post "/sign-in", Auth.SessionController, :create
+    delete "/sign-out", Auth.SessionController, :delete
+
+    get "/register", Auth.RegistrationController, :new
+    post "/register", Auth.RegistrationController, :create
+    get "/register/confirm-pending", Auth.RegistrationController, :confirm_pending
+
+    get "/magic-link", Auth.MagicLinkController, :new
+    post "/magic-link", Auth.MagicLinkController, :create
+
+    get "/forgot-password", Auth.PasswordResetController, :new
+    post "/forgot-password", Auth.PasswordResetController, :create
+
+    # Emailed-link callbacks — the senders point at these exact paths (?token=...).
+    get "/auth/magic-link", Auth.MagicLinkController, :callback
+    get "/auth/confirm", Auth.ConfirmationController, :show
+    post "/auth/confirm", Auth.ConfirmationController, :confirm
+    get "/auth/reset-password", Auth.PasswordResetController, :edit
+    post "/auth/reset-password", Auth.PasswordResetController, :update
+  end
+
+  scope "/", StarterKitWeb do
+    pipe_through [:browser, :require_authenticated]
+
+    get "/settings", Auth.SettingsController, :edit
+    put "/settings/password", Auth.SettingsController, :update_password
   end
 
   scope "/api", StarterKitWeb do

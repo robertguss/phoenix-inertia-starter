@@ -1,9 +1,19 @@
-// Typed Inertia page props (R12). `SharedProps` are injected on every page by a
-// server-side plug (see U5's inertia_share); a page's own props are composed on
-// top with `PageProps<T>`.
+// Typed Inertia page props (R12). `SharedProps` are injected on every page by the
+// server (the `InertiaShare` plug shares `current_user`; Inertia shares `flash` and
+// `errors`). A page's own props are composed on top with `PageProps<T>`.
+
+import type { User } from "@/types/auth";
+
+export interface Flash {
+  info?: string;
+  error?: string;
+}
 
 export interface SharedProps {
-  // `current_user` and `flash` land here once U5 wires the shared-props plug.
+  current_user: User | null;
+  flash: Flash;
+  errors: Record<string, string>;
+  // Inertia's `usePage<T>()` requires page props to carry an index signature.
   [key: string]: unknown;
 }
 

@@ -69,9 +69,13 @@ defmodule StarterKitWeb.Auth.PasswordResetController do
     end
   end
 
-  # The reset action returns InvalidToken either bare or nested inside an
-  # Ash.Error.* wrapper's `:errors` list depending on the failure path.
+  # A bad reset link surfaces two ways: a malformed/expired JWT fails verification as
+  # `InvalidToken` (bare or wrapped), while a structurally-valid JWT of the wrong
+  # purpose passes verification but fails the action's ResetTokenValidation as an
+  # `InvalidArgument` on `:reset_token`. Both mean "this link isn't usable" — route
+  # them to the safe-fail flash, never to the hidden token field's error.
   defp invalid_token?(%AshAuthentication.Errors.InvalidToken{}), do: true
+  defp invalid_token?(%Ash.Error.Changes.InvalidArgument{field: :reset_token}), do: true
 
   defp invalid_token?(%{errors: errors}) when is_list(errors),
     do: Enum.any?(errors, &invalid_token?/1)

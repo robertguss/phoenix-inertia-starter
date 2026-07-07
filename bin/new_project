@@ -154,17 +154,28 @@ defmodule NewProject do
   end
 
   defp copy_template!(target) do
-    # Copy only what git would keep: the `:- .gitignore` dir-merge filter applies the
-    # repo's working-tree ignore rules per directory, so the newborn never inherits
-    # build cruft (_build, deps, node_modules, priv/static, and stray gitignored files
-    # like an 8MB erl_crash.dump) — replacing the old hand-maintained exclude list
-    # (F7). `.git` isn't gitignored, so it's excluded explicitly.
-    {_, 0} =
-      System.cmd(
-        "rsync",
-        ["-a", "--filter=:- .gitignore", "--exclude=.git", "./", target <> "/"],
-        cd: @template_root
-      )
+    # Copy EXACTLY the git-tracked files, at their current working-tree content (F7).
+    # `git ls-files` is the only reliable "what git keeps" source: an rsync
+    # `:- .gitignore` filter is a superset — it drops files re-included by a `!`
+    # negation (e.g. `.env.example` under `.env.*`/`!.env.example`) AND copies
+    # untracked, non-ignored cruft/secrets that `git init && git add -A` would then
+    # commit into the newborn. Feed the NUL-delimited tracked list to rsync so build
+    # dirs (_build, deps, node_modules, priv/static) and stray files never appear.
+    list = Path.join(System.tmp_dir!(), "new_project_files_#{System.unique_integer([:positive])}")
+
+    try do
+      {tracked, 0} = System.cmd("git", ["ls-files", "-z"], cd: @template_root)
+      File.write!(list, tracked)
+
+      {_, 0} =
+        System.cmd(
+          "rsync",
+          ["-a", "--from0", "--files-from=#{list}", "./", target <> "/"],
+          cd: @template_root
+        )
+    after
+      File.rm(list)
+    end
   end
 
   # Fail with a named, friendly message if a tool the birth actually shells out to is

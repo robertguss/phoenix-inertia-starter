@@ -29,8 +29,11 @@ defmodule StarterKitWeb.Auth.SessionControllerTest do
       conn = post(conn, ~p"/sign-in", email: to_string(user.email), password: password())
       assert redirected_to(conn) == ~p"/"
 
-      # configure_session(renew: true) rotates the session on this privilege change;
-      # without it store_in_session only flags :write (F26).
+      # White-box proxy: on the cookie session store the signed cookie is
+      # deterministic, so a true id-rotation isn't observable in a ConnTest. We
+      # assert the controller REQUESTED renewal — `:renew` (drops old session data +
+      # rotates on a server-side store) rather than the plain `:write` that
+      # store_in_session sets on its own (F26).
       assert conn.private[:plug_session_info] == :renew
     end
 

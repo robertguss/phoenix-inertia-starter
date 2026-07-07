@@ -18,7 +18,7 @@ defmodule StarterKitWeb.Auth.SettingsControllerTest do
       %{conn: conn, user: user}
     end
 
-    test "changes the password, ends the session, and redirects to sign-in", %{conn: conn} do
+    test "changes the password, ends THIS session, and redirects to sign-in (F4)", %{conn: conn} do
       conn =
         put(conn, ~p"/settings/password",
           current_password: password(),
@@ -29,10 +29,12 @@ defmodule StarterKitWeb.Auth.SettingsControllerTest do
       assert redirected_to(conn) == ~p"/sign-in"
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "sign in again"
 
-      # `log_out_everywhere` revoked this session's token in the same transaction,
-      # so the old conn no longer reaches an auth-required page (F4).
-      conn = get(conn, ~p"/settings")
-      assert redirected_to(conn) == ~p"/sign-in"
+      # The controller `clear_session()`s, so THIS browser's session is dropped and
+      # the next request is unauthenticated — the honest F4 guarantee (an explicit
+      # sign-out of the current session, not silent breakage). NOTE: this asserts only
+      # the current session; cross-device "log out everywhere" is a separate add-on
+      # and is NOT proven here (see the known-issue note in the branch summary).
+      assert redirected_to(get(conn, ~p"/settings")) == ~p"/sign-in"
     end
 
     test "fails when the current password is wrong", %{conn: conn} do

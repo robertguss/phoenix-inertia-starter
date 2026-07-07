@@ -14,6 +14,12 @@
 #   bin/remove_demo --skip-gate  # remove only (faster; verify yourself)
 
 defmodule RemoveDemo do
+  @moduledoc """
+  Strips the example Notes slice from a birthed project: deletes every DEMO-marked
+  file, cleans demo references from the shared router/config, leaves a drop-notes
+  migration, reformats, and re-runs the gate. See the header comment.
+  """
+
   # Marker on a line: `# DEMO`, `// DEMO`, or `{/* DEMO` (case-sensitive DEMO).
   @marker ~r/(#|\/\/|\{\/\*)\s*DEMO/
   # A shared-file line is also demo if it names a demo module the marker may have

@@ -26,6 +26,10 @@
           "src/",
           "test/",
           "web/",
+          # Extensionless Elixir scripts (bin/new_project, bin/remove_demo) — an
+          # explicit glob because a bare "bin/" would expand to bin/**/*.{ex,exs}
+          # and never match a file without an extension.
+          "bin/*",
           "apps/*/lib/",
           "apps/*/src/",
           "apps/*/test/",

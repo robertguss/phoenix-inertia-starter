@@ -14,6 +14,12 @@
 # gate the newborn is left in place with the failing step printed.
 
 defmodule NewProject do
+  @moduledoc """
+  Births a new project from this template: copies the tree, renames the name
+  casings, prunes to the chosen flavor, installs deps, sets up the database, and
+  runs the quality gate so the newborn is proven green. See the header comment.
+  """
+
   @template_root File.cwd!()
   @reserved ~w(phoenix ash ecto oban elixir mix)
 
@@ -68,22 +74,24 @@ defmodule NewProject do
 
     if invalid != [], do: usage!("unknown option: #{inspect(invalid)}")
 
-    name =
-      case rest do
-        [name] -> name
-        [] -> usage!("missing project NAME")
-        _ -> usage!("expected exactly one NAME, got: #{inspect(rest)}")
-      end
+    {name!(rest), flavor!(opts), opts[:dir], opts[:skip_gate] || false}
+  end
 
-    flavor =
-      case {opts[:web], opts[:api]} do
-        {true, nil} -> :web
-        {nil, true} -> :api
-        {nil, nil} -> usage!("a flavor flag is required: --web or --api")
-        _ -> usage!("--web and --api are mutually exclusive")
-      end
+  defp name!(rest) do
+    case rest do
+      [name] -> name
+      [] -> usage!("missing project NAME")
+      _ -> usage!("expected exactly one NAME, got: #{inspect(rest)}")
+    end
+  end
 
-    {name, flavor, opts[:dir], opts[:skip_gate] || false}
+  defp flavor!(opts) do
+    case {opts[:web], opts[:api]} do
+      {true, nil} -> :web
+      {nil, true} -> :api
+      {nil, nil} -> usage!("a flavor flag is required: --web or --api")
+      _ -> usage!("--web and --api are mutually exclusive")
+    end
   end
 
   defp usage!(message) do

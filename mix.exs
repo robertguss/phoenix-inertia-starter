@@ -148,7 +148,18 @@ defmodule StarterKit.MixProject do
       ],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ash.setup --quiet", "test"],
+      test: [
+        "ash.setup --quiet",
+        # PRUNE:WEB
+        # Build the Vite manifest into priv/static before the endpoint boots. Inertia
+        # renders read priv/static/.vite/manifest.json at request time and phoenix_vite
+        # raises File.Error if it is absent (F13). precommit runs THIS alias (not
+        # `mix setup`), so the build lives here to cover a fresh --web newborn and a
+        # cold checkout alike; --api prunes the whole block (no assets).
+        "assets.build",
+        # PRUNE:END
+        "test"
+      ],
       # PRUNE:WEB
       # Vite asset pipeline via phoenix_vite (web flavor). `assets.deploy` is what
       # the birth-generated Dockerfile calls (KTD6); it produces the manifest that
@@ -162,6 +173,8 @@ defmodule StarterKit.MixProject do
       precommit: [
         "format --check-formatted",
         "compile --warnings-as-errors --force",
+        # Fail fast on resource/migration/snapshot drift before the slow steps run.
+        "ash_postgres.generate_migrations --check",
         "credo --strict",
         "sobelow --config",
         "deps.audit",

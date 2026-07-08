@@ -1,71 +1,98 @@
 # Starter Kit — Agent Guide
 
-> **This repository is a project _template_, not an application.** Do not build
-> product features here. Birth a real project with
-> `bin/new_project NAME --web|--api`, then build there. `starter_kit` /
-> `StarterKit` / `starter-kit` are placeholder names the birth script renames —
-> never hard-code them in new code.
+**Generated:** 2026-07-08
+**Commit:** 933f4e1
+**Branch:** main
 
-## Definition of done
+## Overview
 
-`mix precommit` passes. That single alias (defined in `mix.exs`) is the whole
-gate — format check, compile (warnings as errors), `credo --strict`, `sobelow`,
-`deps.audit`, tests, and `dialyzer`. After a fresh clone, run `mix setup` once
-to install dependencies and hydrate assets before the gate. CI runs the same
-alias by name after its setup steps. Nothing ships red.
+This repository is a pinned Phoenix 1.8 / Ash 3 template, not an application.
+`bin/new_project NAME --web|--api` births the real project, renames every
+`starter_kit` / `StarterKit` / `starter-kit` placeholder, prunes to the selected
+flavor, and proves the newborn green.
 
-## Stack conventions (the non-obvious parts)
+## Structure
 
-- **Domain layer is Ash 3**, not raw Ecto or Phoenix contexts. All domain logic
-  lives in Ash resources and actions. The package usage-rules synced below are
-  authoritative — consult them before touching domain code.
+```text
+.
+|-- bin/                  # birth/prune scripts; these define template behavior
+|-- lib/starter_kit/      # Ash domains, resources, jobs, repo, mailer
+|-- lib/starter_kit_web/  # Phoenix routes/controllers/plugs plus admin/API mounts
+|-- assets/js/            # web-flavor Inertia React UI; pruned for --api
+|-- test/                 # Ash, ConnTest, JSON:API, admin, Playwright tests
+|-- priv/repo/            # migrations; keep in sync with Ash resource snapshots
+|-- docs/                 # refresh and implementation plans
+`-- .github/workflows/    # template gate plus birth matrix
+```
+
+## Where To Look
+
+| Task | Location | Notes |
+| --- | --- | --- |
+| Birth a project | `bin/new_project` | Required `--web` or `--api`; patches names, deps, release files, docs, and gates. |
+| Remove demo slice | `bin/remove_demo` | The Notes slice is the only deliberately-removable code. |
+| Add domain behavior | `lib/starter_kit/AGENTS.md` | Ash resources/actions first; no raw Phoenix contexts. |
+| Add routes/controllers/plugs | `lib/starter_kit_web/AGENTS.md` | Inertia pages for web; AshJsonApi and admin surfaces stay separate. |
+| Add web UI | `assets/js/AGENTS.md` | React 19 + Inertia + Vite; `assets/` is pruned for API flavor. |
+| Add or adjust tests | `test/AGENTS.md` | Match the surface: Ash action, ConnTest, JSON:API, or Playwright. |
+| Refresh dependency pins | `docs/refresh.md` | This repo is a known-good snapshot, not pull-latest scaffolding. |
+
+## Code Map
+
+| Symbol | Type | Location | Refs | Role |
+| --- | --- | --- | --- | --- |
+| `StarterKit.MixProject` | Mix project | `mix.exs` | 4 graph edges | Owns deps, usage-rules sync, asset aliases, and `mix precommit`. |
+| `StarterKit.Application` | OTP app | `lib/starter_kit/application.ex` | 3 graph edges | Boots Repo, Oban/AshOban, PubSub, Endpoint, and AshAuthentication. |
+| `StarterKit.Accounts` | Ash domain | `lib/starter_kit/accounts.ex` | 1 graph edge | Auth/user/API-key domain plus code interfaces. |
+| `StarterKit.Accounts.User` | Ash resource | `lib/starter_kit/accounts/user.ex` | 12 graph edges | Password, magic link, confirmation, reset, policies, Oban expiry. |
+| `StarterKit.Notes` | Ash domain | `lib/starter_kit/notes.ex` | 1 graph edge | Demo domain for CRUD + JSON:API; removed by `bin/remove_demo`. |
+| `StarterKitWeb.Router` | Phoenix router | `lib/starter_kit_web/router.ex` | entry route hub | Separates browser, API, admin, and dev-only mailbox scopes. |
+| `StarterKitWeb.NoteController` | Controller | `lib/starter_kit_web/controllers/note_controller.ex` | 9 graph edges | Demo Inertia CRUD surface for the Notes slice. |
+| `StarterKitWeb.Plugs.ApiAuth` | Plug | `lib/starter_kit_web/plugs/api_auth.ex` | 5 graph edges | Sets Ash actor from API key or bearer token. |
+| `StarterKitWeb.AshAdminActorPlug` | Admin plug | `lib/starter_kit_web/ash_admin_actor_plug.ex` | 3 graph edges | Feeds signed-in users to AshAdmin as Ash actors. |
+| `assets/js/app.tsx` | Inertia entry | `assets/js/app.tsx` | page resolver | Eagerly glob-resolves `assets/js/pages/**/*.tsx`. |
+
+## Conventions
+
+- `mix precommit` is the definition of done: format, forced warnings-as-errors
+  compile, migration drift check, `credo --strict`, `sobelow`, `deps.audit`,
+  tests, and Dialyzer. After a fresh clone, run `mix setup` once.
+- Domain layer is Ash 3. Put business rules in resources/actions and expose them
+  through domain code interfaces.
+- Use the bundled `Req` for HTTP requests; avoid `:httpoison`, `:tesla`, and
+  `:httpc`.
 <!-- PRUNE:WEB -->
-- **The web flavor renders through Inertia.js + React 19 + TypeScript (Vite)**,
-  _not_ LiveView/HEEx. LiveView appears only as the AshAdmin and LiveDashboard
-  surfaces. For product UI, build pages under `assets/js/` — ignore the generic
-  Phoenix HEEx / `core_components` / `<.input>` advice in the synced rules.
+- Web flavor renders through Inertia.js + React 19 + TypeScript, not product
+  LiveView/HEEx. LiveView appears only for AshAdmin and LiveDashboard.
 <!-- PRUNE:END -->
-- **The API flavor exposes resources via AshJsonApi** with a generated OpenAPI
-  spec.
-- Use the bundled `Req` for HTTP requests; avoid `:httpoison`, `:tesla`, `:httpc`.
+- API flavor exposes Ash resources via AshJsonApi and the generated OpenAPI spec.
+- `PRUNE:WEB` / `PRUNE:END` blocks must stay coherent: the birth script removes
+  them for `--api`.
+- Bracketed tags in comments (`R23`, `KTD3`, `AE4`, `Pattern B`) are internal
+  build-provenance tags from planning docs; preserve them unless removing the
+  code they explain.
 
-## Testing conventions (deliberately plural)
+## Anti-Patterns
 
-<!-- PRUNE:WEB -->
-- `Phoenix.ConnTest` + `Inertia.Testing` for web-flavor controller assertions
-  (props/component, not rendered HTML).
-<!-- PRUNE:END -->
-- Plain `Phoenix.ConnTest` for JSON:API controller assertions.
-- `Ash.Generator` fixtures (see `test/support/generators.ex`), `Mimic` for mocks,
-  `stream_data` for property tests — no separate factory library.
-<!-- PRUNE:WEB -->
-- Browser E2E lives in `test/e2e/` tagged `:playwright`, **excluded** from the
-  fast gate; run it with `mix test --only playwright` (CI's web leg does).
-<!-- PRUNE:END -->
+- Do not build product features in this template; birth a project first.
+- Do not hard-code `starter_kit`, `StarterKit`, or `starter-kit` in new behavior
+  except where the birth script intentionally renames placeholders.
+- Do not add raw Ecto context logic beside Ash resources.
+- Do not make CI enumerate gate steps directly; CI calls `mix precommit`.
+- Do not treat the demo Notes slice as permanent app code. It must remain
+  removable by `bin/remove_demo`.
+- Do not edit below the `usage-rules-start` marker by hand.
 
-## This is a template
+## Commands
 
-`starter_kit` / `StarterKit` / `starter-kit` are placeholder names — never
-hard-code them in new code. `bin/new_project` births a real project and
-`bin/remove_demo` strips the example Notes slice; the demo is the only
-deliberately-removable code.
-
-## Blessed patterns (build new work like these)
-
-<!-- PRUNE:WEB -->
-- **Forms:** page components under `assets/js/pages/**` built with the `field.tsx`
-  helper (`@/components/field`) and Inertia's `useForm` — see
-  `assets/js/pages/notes/form.tsx`. The shipped shadcn `Form` and `Dialog`
-  components (`assets/js/components/ui/`) are the copied-in core set (R10) and are
-  both kept; reach for the `useForm` idiom for new forms and `Dialog` for
-  confirmations (demoed in `assets/js/pages/notes/index.tsx`).
-<!-- PRUNE:END -->
-- **Vertical slice:** an Ash resource under `lib/starter_kit/notes/` plus a
-  controller at `lib/starter_kit_web/controllers/note_controller.ex` — model new
-  CRUD work on that pairing.
-- Bracketed tags in code comments (e.g. `R23`, `KTD3`, `AE4`, `Pattern B`) are
-  internal build-provenance tags from the template's own planning docs and are
-  safe for consumers to ignore.
+```bash
+mix setup
+mix precommit
+bin/new_project my_app --web --dir /tmp/my_app
+bin/new_project my_app --api --dir /tmp/my_app_api
+mix test --only playwright
+mix usage_rules.sync
+```
 
 Everything below this line is synced from package usage-rules by
 `mix usage_rules.sync` — it is managed, do not edit by hand.

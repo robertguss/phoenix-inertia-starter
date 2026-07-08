@@ -43,9 +43,15 @@ defmodule StarterKitWeb.Api.NotesApiTest do
       |> Plug.Conn.put_req_header("content-type", @json_api)
       |> post("/api/v1/notes", note_payload(%{title: "x"}))
 
-    # No actor -> no owner to relate the note to, so the write is rejected (400).
-    # (The clean unauthenticated-403 path is proven against /users in json_api_test.)
-    assert conn.status == 400
+    assert %{
+             "errors" => [
+               %{
+                 "status" => "401",
+                 "title" => "Unauthorized",
+                 "detail" => "Authentication is required for this endpoint."
+               }
+             ]
+           } = json_response(conn, 401)
   end
 
   test "a valid key creates and lists only the caller's notes", %{conn: conn} do

@@ -29,7 +29,13 @@ defmodule NewProject do
   @node_major 24
 
   # Template-only artifacts a newborn should never carry.
-  @always_delete ~w(bin/new_project docs/plans .github/workflows/birth-matrix.yml)
+  @always_delete ~w(
+    bin/new_project
+    docs/github-settings.md
+    docs/plans
+    docs/refresh.md
+    .github/workflows/birth-matrix.yml
+  )
 
   # Whole web-only files/dirs deleted for --api (relative to the newborn root, with
   # `APP` standing in for the renamed app name). Colocated prune manifest (KTD5).
@@ -59,6 +65,8 @@ defmodule NewProject do
     Enum.each(@always_delete, &File.rm_rf!(Path.join(target, &1)))
     rename!(target, names)
     process_flavor!(target, flavor, names)
+    write_newborn_readme!(target, names, flavor)
+    prune_empty_dirs(target)
 
     setup!(target, flavor)
     unless skip_gate?, do: verify!(target, flavor)
@@ -254,6 +262,116 @@ defmodule NewProject do
     apply_markers(target, :web)
   end
 
+  defp write_newborn_readme!(target, names, flavor) do
+    File.write!(Path.join(target, "README.md"), newborn_readme(names, flavor))
+  end
+
+  defp newborn_readme(names, :web) do
+    """
+    # #{names.module}
+
+    Phoenix 1.8 / Ash 3 application with an Inertia + React + TypeScript web UI
+    and a JSON:API surface under `/api/v1`.
+
+    ## Quickstart
+
+    ```bash
+    mix setup        # first run after a fresh clone
+    mix phx.server
+    ```
+
+    Open <http://localhost:4000>. API docs are available at
+    <http://localhost:4000/api/v1/docs>.
+
+    ## Quality Gate
+
+    ```bash
+    mix precommit
+    ```
+
+    The gate runs format checks, compile with warnings as errors, migration drift
+    checks, Credo, Sobelow, dependency audit, tests, and Dialyzer. Browser E2E tests
+    are tagged separately:
+
+    ```bash
+    mix test --only playwright
+    ```
+
+    ## Demo Slice
+
+    The starter ships with a small Notes feature so the project has a working
+    vertical slice on day one. Remove it once you have real features:
+
+    ```bash
+    bin/remove_demo
+    ```
+
+    ## Deploy
+
+    A production `Dockerfile` is generated and committed during project birth:
+
+    ```bash
+    docker build .
+    ```
+
+    Regenerate it only when you intentionally refresh release settings:
+
+    ```bash
+    mix phx.gen.release --docker --force
+    ```
+    """
+  end
+
+  defp newborn_readme(names, :api) do
+    """
+    # #{names.module}
+
+    Phoenix 1.8 / Ash 3 JSON:API application. Resources are exposed under
+    `/api/v1`, with Swagger UI at `/api/v1/docs`.
+
+    ## Quickstart
+
+    ```bash
+    mix setup        # first run after a fresh clone
+    mix phx.server
+    ```
+
+    Open <http://localhost:4000/api/v1/docs> for API documentation.
+
+    ## Quality Gate
+
+    ```bash
+    mix precommit
+    ```
+
+    The gate runs format checks, compile with warnings as errors, migration drift
+    checks, Credo, Sobelow, dependency audit, tests, and Dialyzer.
+
+    ## Demo Slice
+
+    The starter ships with a small Notes API feature so the project has a working
+    vertical slice on day one. Remove it once you have real resources:
+
+    ```bash
+    bin/remove_demo
+    ```
+
+    ## Deploy
+
+    A production `Dockerfile` is generated and committed during project birth:
+
+    ```bash
+    docker build .
+    ```
+
+    Regenerate it only when you intentionally refresh release settings:
+
+    ```bash
+    mix phx.gen.release --docker --force
+    ```
+    """
+  end
+
   # `# PRUNE:WEB` .. `# PRUNE:END` blocks: --api drops the whole block, --web keeps
   # the enclosed code and drops only the marker lines. Either way no marker survives.
   defp apply_markers(target, flavor) do
@@ -319,6 +437,7 @@ defmodule NewProject do
     # KTD-R1). --api omits the assets lines (generator gates them on assets/ existing);
     # --web needs Node + an install-after-copy fixup, see patch_dockerfile!/1.
     mix!(target, ["phx.gen.release", "--docker", "--force"], "generating the release Dockerfile")
+    patch_dockerfile_runtime!(target)
     if flavor == :web, do: patch_dockerfile!(target)
 
     # Format last so the generator's lib/*/release.ex is gate-clean too.
@@ -367,6 +486,59 @@ defmodule NewProject do
 
     File.write!(path, Enum.join(patched, "\n"))
     info("Patched Dockerfile: Node #{@node_major} in builder, npm install after asset copy")
+  end
+
+  defp patch_dockerfile_runtime!(target) do
+    path = Path.join(target, "Dockerfile")
+    versions = runtime_versions!(target)
+
+    patched =
+      path
+      |> File.read!()
+      |> replace_docker_arg!("ELIXIR_VERSION", versions.elixir)
+      |> replace_docker_arg!("OTP_VERSION", versions.erlang)
+
+    File.write!(path, patched)
+    info("Pinned Dockerfile runtime to Elixir #{versions.elixir} / Erlang #{versions.erlang}")
+  end
+
+  defp runtime_versions!(target) do
+    lines =
+      target
+      |> Path.join(".tool-versions")
+      |> File.read!()
+      |> String.split("\n", trim: true)
+
+    elixir =
+      lines
+      |> tool_version!("elixir")
+      |> String.replace(~r/-otp-\d+$/, "")
+
+    %{elixir: elixir, erlang: tool_version!(lines, "erlang")}
+  end
+
+  defp tool_version!(lines, tool) do
+    case Enum.find_value(lines, &tool_version(&1, tool)) do
+      nil -> die(".tool-versions is missing #{tool}", 1)
+      version -> version
+    end
+  end
+
+  defp tool_version(line, tool) do
+    case String.split(line, ~r/\s+/, parts: 2) do
+      [^tool, version] -> String.trim(version)
+      _ -> nil
+    end
+  end
+
+  defp replace_docker_arg!(contents, arg, value) do
+    pattern = ~r/^ARG #{arg}=.+$/m
+
+    if Regex.match?(pattern, contents) do
+      Regex.replace(pattern, contents, "ARG #{arg}=#{value}")
+    else
+      die("Dockerfile ARG #{arg} not found — phx.gen.release output changed; update bin/new_project", 1)
+    end
   end
 
   defp verify!(target, _flavor) do

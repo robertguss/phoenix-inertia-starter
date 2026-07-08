@@ -58,7 +58,8 @@ dev mailbox — those are self-contained islands independent of the rendering ch
 - **API:** AshJsonApi with an auto-generated OpenAPI spec (`/api/v1/open_api`) and
   Swagger UI (`/api/v1/docs`).
 - **Quality gate:** one `mix precommit` alias — format, compile (warnings as
-  errors), Credo, Sobelow, deps.audit, tests, Dialyzer. CI runs it by name.
+  errors), Credo, Sobelow, deps.audit, tests, Dialyzer. Run `mix setup` once
+  after a fresh clone; CI runs the gate by name after installing dependencies.
 - **Agent guidance:** `AGENTS.md`, kept in sync with package usage-rules.
 
 ## The demo slice
@@ -73,12 +74,14 @@ bin/remove_demo        # deletes the slice and re-runs the gate
 
 ## Deploy
 
-`Dockerfile` and `fly.toml` are generated at deploy time, not committed (stale
-committed platform config is a known footgun). When you're ready:
+Each newborn gets a committed `Dockerfile` during birth. The Dockerfile runtime
+ARGs are patched from `.tool-versions`, and the web flavor also gets Node in the
+builder for the phoenix_vite asset pipeline. When you intentionally refresh
+release settings, regenerate it:
 
 ```bash
-mix phx.gen.release --docker   # generate the release Dockerfile
-fly launch --no-deploy         # Fly owns the globally-unique app name
+mix phx.gen.release --docker --force
+bin/new_project my_app --web --dir /tmp/my_app --skip-gate   # smoke the generated shape
 ```
 
 On Fly Managed Postgres, run migrations against the direct (non-pooled) URL — set
@@ -88,7 +91,7 @@ On Fly Managed Postgres, run migrations against the direct (non-pooled) URL — 
 
 | Layer | Package | Version |
 |---|---|---|
-| Runtime | Elixir / OTP | 1.20.1 / 29.0.2 (`.tool-versions`) |
+| Runtime | Elixir / OTP | 1.20.2 / 29.0.3 (`.tool-versions`) |
 | Framework | phoenix (Bandit) | 1.8.8 (bandit 1.12.0) |
 | Domain | ash / ash_postgres / ash_phoenix | 3.29.3 / 2.x / 2.x |
 | Auth | ash_authentication | 4.14.1 |

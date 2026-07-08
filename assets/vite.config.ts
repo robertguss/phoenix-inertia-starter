@@ -18,6 +18,19 @@ export default defineConfig({
     manifest: true,
     rollupOptions: {
       input: ["js/app.tsx", "css/app.css"],
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replace(/\\/g, "/");
+
+          if (/\/node_modules\/(react|react-dom|scheduler)(\/|$)/.test(normalizedId)) {
+            return "react";
+          }
+
+          if (normalizedId.includes("/node_modules/@inertiajs/")) {
+            return "inertia";
+          }
+        },
+      },
     },
     outDir: "../priv/static",
     emptyOutDir: true,

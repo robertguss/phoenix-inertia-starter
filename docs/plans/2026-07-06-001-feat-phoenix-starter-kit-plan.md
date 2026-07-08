@@ -216,7 +216,7 @@ All ecosystem claims verified 2026-07-06 against hex.pm, npm, and GitHub primary
 
 All verified live 2026-07-06. `mix.lock` / `package-lock.json` committed; these are the load-bearing pins.
 
-> **Erratum (postdates this pass):** the shipped runtime is **Erlang 29.0.2 / Elixir 1.20.1-otp-29** (canonical, tracked by `.tool-versions` and the README) — supersedes the Elixir 1.20.2 / OTP 27.3.4.14 row below, which reflects the original 2026-07-06 OTP-27 primary-source pass.
+> **Erratum (postdates this pass):** the shipped runtime is **Erlang 29.0.3 / Elixir 1.20.2-otp-29** (canonical, tracked by `.tool-versions`, the README, and generated Dockerfile ARGs) — supersedes the Elixir 1.20.2 / OTP 27.3.4.14 row below, which reflects the original 2026-07-06 OTP-27 primary-source pass.
 
 | Layer | Package | Pin |
 |---|---|---|

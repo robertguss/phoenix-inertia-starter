@@ -31,6 +31,7 @@ defmodule StarterKitWeb.E2E.NotesTest do
     |> fill_in("Email", with: to_string(user.email))
     |> fill_in("Password", with: @password)
     |> click_button("Sign in")
+    |> assert_path("/")
     |> visit("/notes")
     |> click_link("New note")
     |> fill_in("Title", with: "Written in a browser")

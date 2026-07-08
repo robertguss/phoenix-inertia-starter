@@ -3,8 +3,9 @@ defmodule StarterKitWeb.Plugs.ApiAuth do
   Sets the Ash actor for API requests from either an API key or a JWT bearer token
   (R14) — both arrive as `Authorization: Bearer <token>`. The key is tried first;
   anything that isn't a valid key falls through to the JWT check (`on_error` is a
-  no-op so the pipeline never halts here). A missing or invalid credential simply
-  leaves the actor unset, and resource policies reject the request.
+  no-op so this plug never halts). A missing or invalid credential simply leaves
+  the actor unset; the API pipeline rejects unsafe requests and resource policies
+  handle read-only access.
 
   `AshAuthentication.Strategy.ApiKey.Plug` is initialised per-request rather than at
   compile time so this plug does not depend on `StarterKit.Accounts.User` being

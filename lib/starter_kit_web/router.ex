@@ -24,10 +24,11 @@ defmodule StarterKitWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
-    # Sets the Ash actor from an API key or JWT bearer token (R14). Never halts;
-    # resource policies decide access. `open_api`/`docs` carry no policy, so they
-    # stay reachable without credentials.
+    # Sets the Ash actor from an API key or JWT bearer token (R14). Unsafe API
+    # requests require a credential before AshJsonApi reaches resource changes;
+    # read-only routes still fall through to policies, and docs stay public.
     plug StarterKitWeb.Plugs.ApiAuth
+    plug StarterKitWeb.Plugs.RequireApiAuthenticated
   end
 
   # PRUNE:WEB

@@ -10,8 +10,9 @@
 
 `mix precommit` passes. That single alias (defined in `mix.exs`) is the whole
 gate — format check, compile (warnings as errors), `credo --strict`, `sobelow`,
-`deps.audit`, tests, and `dialyzer`. CI runs the same alias by name. Nothing
-ships red.
+`deps.audit`, tests, and `dialyzer`. After a fresh clone, run `mix setup` once
+to install dependencies and hydrate assets before the gate. CI runs the same
+alias by name after its setup steps. Nothing ships red.
 
 ## Stack conventions (the non-obvious parts)
 

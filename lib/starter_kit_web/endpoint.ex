@@ -18,6 +18,9 @@ defmodule StarterKitWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
+  # Chrome DevTools probes this path; answer 404 quietly so logs stay clean.
+  plug :ignore_chrome_devtools
+
   # PRUNE:WEB
   # In dev, redirect favicon requests to the Vite dev server; a no-op in prod.
   plug :favicon, dev_server: {PhoenixVite.Components, :has_vite_watcher?, [__MODULE__]}
@@ -64,4 +67,15 @@ defmodule StarterKitWeb.Endpoint do
   plug Plug.Head
   plug Plug.Session, @session_options
   plug StarterKitWeb.Router
+
+  defp ignore_chrome_devtools(
+         %{request_path: "/.well-known/appspecific/com.chrome.devtools.json"} = conn,
+         _opts
+       ) do
+    conn
+    |> Plug.Conn.send_resp(404, "")
+    |> Plug.Conn.halt()
+  end
+
+  defp ignore_chrome_devtools(conn, _opts), do: conn
 end

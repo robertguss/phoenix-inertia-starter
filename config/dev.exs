@@ -66,7 +66,8 @@ config :starter_kit,
        :content_security_policy,
        "default-src 'self'; " <>
          "connect-src 'self' ws://localhost:5173 http://localhost:5173; " <>
-         "img-src 'self' data:; " <>
+         # Favicon and other public assets are served by Vite in dev (static_url :5173).
+         "img-src 'self' data: http://localhost:5173; " <>
          "style-src 'self' 'unsafe-inline' http://localhost:5173; " <>
          "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173; " <>
          "base-uri 'self'; frame-ancestors 'self'; object-src 'none'"
@@ -75,6 +76,10 @@ config :starter_kit,
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
+
+# Keep the console readable: request [info] lines only (no SQL dumps or router
+# debug stacktraces). Set to :debug when hunting DB/auth issues.
+config :logger, level: :info
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.

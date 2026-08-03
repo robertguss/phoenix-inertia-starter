@@ -6,6 +6,22 @@
     <meta name="csrf-token" content={get_csrf_token()} />
     <.inertia_title>{assigns[:page_title]}</.inertia_title>
     <.inertia_head content={@inertia_head} />
+    <%!--
+      React Fast Refresh preamble is required when Phoenix (not Vite) serves the HTML.
+      HEEx does not interpolate `{}` inside <script> bodies, so the Vite origin is
+      inlined (matches config/dev.exs static_url + assets/vite.config.ts).
+      See https://vite.dev/guide/backend-integration.html
+    --%>
+    <script
+      :if={PhoenixVite.Components.has_vite_watcher?(StarterKitWeb.Endpoint)}
+      type="module"
+    >
+      import RefreshRuntime from "http://localhost:5173/@react-refresh"
+      RefreshRuntime.injectIntoGlobalHook(window)
+      window.$RefreshReg$ = () => {}
+      window.$RefreshSig$ = () => (type) => type
+      window.__vite_plugin_react_preamble_installed__ = true
+    </script>
     <PhoenixVite.Components.assets
       names={["js/app.tsx", "css/app.css"]}
       manifest={{:starter_kit, "priv/static/.vite/manifest.json"}}

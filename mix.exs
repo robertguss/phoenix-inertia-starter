@@ -65,7 +65,7 @@ defmodule StarterKit.MixProject do
       {:ash, "~> 3.0"},
       {:ash_phoenix, "~> 2.0"},
       {:ash_postgres, "~> 2.0"},
-      {:tidewave, "~> 0.6", only: [:dev]},
+      {:tidewave, "~> 0.8", only: [:dev]},
       {:usage_rules, "~> 1.0", only: [:dev]},
       {:phoenix, "~> 1.8.8"},
       {:phoenix_ecto, "~> 4.5"},

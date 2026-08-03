@@ -59,6 +59,7 @@ defmodule NewProject do
 
     ensure_target!(target)
     check_binaries!(flavor)
+    check_postgres!()
     info("Birthing #{names.app} (#{flavor}) into #{target}")
 
     copy_template!(target)
@@ -194,6 +195,71 @@ defmodule NewProject do
 
     for bin <- required, is_nil(System.find_executable(bin)) do
       die("required executable #{inspect(bin)} not found on PATH — install it and retry", 1)
+    end
+  end
+
+  # Dev/test configs use the Phoenix convention username/password `postgres`/`postgres`
+  # on localhost. Homebrew Postgres creates a superuser named after your OS account and
+  # often has no `postgres` role — ash.setup then fails late with a dense Postgrex error.
+  # Probe early with a clear fix for the common macOS case.
+  defp check_postgres! do
+    # Merge into the parent env — `env:` alone replaces PATH and breaks finding `psql`.
+    env =
+      System.get_env()
+      |> Map.put("PGPASSWORD", "postgres")
+      |> Map.put("PGCONNECT_TIMEOUT", "3")
+      |> Enum.to_list()
+
+    case System.find_executable("psql") do
+      nil ->
+        die(
+          "required executable \"psql\" not found on PATH — install PostgreSQL client tools and retry",
+          1
+        )
+
+      psql ->
+        case System.cmd(
+               psql,
+               [
+                 "-h",
+                 "localhost",
+                 "-U",
+                 "postgres",
+                 "-d",
+                 "postgres",
+                 "-v",
+                 "ON_ERROR_STOP=1",
+                 "-tAc",
+                 "SELECT 1"
+               ],
+               env: env,
+               stderr_to_stdout: true
+             ) do
+          {"1\n", 0} ->
+            :ok
+
+          {output, _} ->
+            die(
+              """
+              cannot connect to Postgres as postgres/postgres@localhost (required by config/dev.exs and config/test.exs).
+
+              Probe output:
+              #{String.trim(output)}
+
+              Common fix on Homebrew Postgres (superuser is your OS user, no `postgres` role):
+
+                createuser -s postgres
+                psql -d postgres -c "ALTER ROLE postgres WITH PASSWORD 'postgres';"
+
+              Or install Postgres via Docker:
+
+                docker run -d --name starter-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16
+
+              Then re-run birth.
+              """,
+              1
+            )
+        end
     end
   end
 

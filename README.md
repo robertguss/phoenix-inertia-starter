@@ -12,6 +12,30 @@ shipping features immediately from working, conventional code.
 > names `starter_kit` / `StarterKit` / `starter-kit` are placeholders the birth
 > script renames.
 
+## Prerequisites
+
+- Elixir / OTP from `.tool-versions` (mise or asdf recommended)
+- PostgreSQL listening on `localhost:5432` with role `postgres` / password `postgres`
+  (Phoenix defaults in `config/dev.exs` and `config/test.exs`)
+- Node.js 24+ and npm for the `--web` flavor
+
+**Homebrew Postgres** creates a superuser named after your OS account and usually
+has no `postgres` role. Create one before birthing:
+
+```bash
+createuser -s postgres
+psql -d postgres -c "ALTER ROLE postgres WITH PASSWORD 'postgres';"
+```
+
+Docker alternative:
+
+```bash
+docker run -d --name starter-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16
+```
+
+`bin/new_project` probes this connection up front so you get a clear message
+instead of a late `mix ash.setup` failure.
+
 ## Quickstart
 
 ```bash

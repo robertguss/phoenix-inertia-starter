@@ -42,3 +42,6 @@ starter_kit-*.tar
 # generated — the source of truth is assets/.
 /priv/static/
 
+
+# Local codebase knowledge graph (auto-regenerated; machine-local).
+.codebase-memory/

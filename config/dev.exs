@@ -62,6 +62,8 @@ config :starter_kit, dev_routes: true, token_signing_secret: "lmfm7muFcUQTO8jcDP
 # PRUNE:WEB
 # Relax the CSP for the Vite dev server: module scripts and styles are served from
 # :5173, HMR runs over a websocket, and React Fast Refresh needs 'unsafe-eval'.
+# worker-src blob: is required because Vite's HMR client spins up blob workers;
+# without it, browsers fall back to script-src and block those workers.
 config :starter_kit,
        :content_security_policy,
        "default-src 'self'; " <>
@@ -70,6 +72,7 @@ config :starter_kit,
          "img-src 'self' data: http://localhost:5173; " <>
          "style-src 'self' 'unsafe-inline' http://localhost:5173; " <>
          "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173; " <>
+         "worker-src 'self' blob:; " <>
          "base-uri 'self'; frame-ancestors 'self'; object-src 'none'"
 
 # PRUNE:END
